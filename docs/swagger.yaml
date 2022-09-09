@@ -1,0 +1,184 @@
+basePath: /api/v1
+definitions:
+  internal.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      msg:
+        type: string
+    type: object
+  service.FileSourcePager:
+    properties:
+      pageCount:
+        type: integer
+      sources:
+        items:
+          $ref: '#/definitions/service.FileSourceResp'
+        type: array
+      total:
+        type: integer
+    type: object
+  service.FileSourceResp:
+    properties:
+      cold_backups:
+        type: integer
+      data_cid:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      hot_backups:
+        type: integer
+      ipfs_urls:
+        items:
+          type: string
+        type: array
+      mcs_status:
+        type: string
+      providers:
+        items:
+          $ref: '#/definitions/service.ProviderInfo'
+        type: array
+      upload_id:
+        type: integer
+    type: object
+  service.ProviderInfo:
+    properties:
+      provider_id:
+        type: string
+      status:
+        type: string
+    type: object
+  service.RebuildStatusReq:
+    properties:
+      data_cid:
+        type: string
+      file_size:
+        type: integer
+      ipfs_url:
+        type: string
+      payload_cid:
+        type: string
+      source_file_upload_id:
+        type: integer
+    type: object
+  service.SummaryResp:
+    properties:
+      cids_count:
+        type: integer
+      data_stored:
+        type: integer
+      deals_count:
+        type: integer
+      height:
+        type: integer
+      ipfs_nodes:
+        type: integer
+      providers:
+        type: integer
+    type: object
+host: api.storefrontiers.cn
+info:
+  contact:
+    name: API Support
+    url: http://www.swagger.io/support
+  title: ReBuilder API
+  version: "1.0"
+paths:
+  /cid/{cid}:
+    get:
+      parameters:
+      - description: ID
+        in: path
+        name: cid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal.Response'
+      summary: 根据cid从filecoin检索文件存储到ipfs
+  /files:
+    get:
+      parameters:
+      - description: data_cid/file_name
+        in: query
+        name: field_name
+        type: string
+      - description: 页码，默认从0开始
+        in: query
+        name: page
+        type: integer
+      - description: 条数，默认为20条
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 正常返回的数据格式
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.FileSourcePager'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal.Response'
+      summary: 获取文件存储信息列表
+  /rebuild/status:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/service.RebuildStatusReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal.Response'
+      summary: 更新rebuilder任务的状态
+  /summary:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 正常返回的数据格式
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SummaryResp'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal.Response'
+      summary: 汇总信息展示
+swagger: "2.0"

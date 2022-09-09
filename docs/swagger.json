@@ -1,0 +1,293 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "ReBuilder API",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support"
+        },
+        "version": "1.0"
+    },
+    "host": "api.storefrontiers.cn",
+    "basePath": "/api/v1",
+    "paths": {
+        "/cid/{cid}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "根据cid从filecoin检索文件存储到ipfs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID",
+                        "name": "cid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "获取文件存储信息列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "data_cid/file_name",
+                        "name": "field_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认从0开始",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "条数，默认为20条",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "正常返回的数据格式",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/internal.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.FileSourcePager"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rebuild/status": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "更新rebuilder任务的状态",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.RebuildStatusReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/summary": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "汇总信息展示",
+                "responses": {
+                    "200": {
+                        "description": "正常返回的数据格式",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/internal.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.SummaryResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "internal.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {},
+                "msg": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.FileSourcePager": {
+            "type": "object",
+            "properties": {
+                "pageCount": {
+                    "type": "integer"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.FileSourceResp"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.FileSourceResp": {
+            "type": "object",
+            "properties": {
+                "cold_backups": {
+                    "type": "integer"
+                },
+                "data_cid": {
+                    "type": "string"
+                },
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "hot_backups": {
+                    "type": "integer"
+                },
+                "ipfs_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "mcs_status": {
+                    "type": "string"
+                },
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.ProviderInfo"
+                    }
+                },
+                "upload_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.ProviderInfo": {
+            "type": "object",
+            "properties": {
+                "provider_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.RebuildStatusReq": {
+            "type": "object",
+            "properties": {
+                "data_cid": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "ipfs_url": {
+                    "type": "string"
+                },
+                "payload_cid": {
+                    "type": "string"
+                },
+                "source_file_upload_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.SummaryResp": {
+            "type": "object",
+            "properties": {
+                "cids_count": {
+                    "type": "integer"
+                },
+                "data_stored": {
+                    "type": "integer"
+                },
+                "deals_count": {
+                    "type": "integer"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "ipfs_nodes": {
+                    "type": "integer"
+                },
+                "providers": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

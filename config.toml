@@ -1,0 +1,21 @@
+[server]
+#debug or release
+RunMode = "debug"
+HttpPort = 8000
+
+[database]
+User = "root"
+Password = "rootadmin"
+Host = "127.0.0.1:3306"
+Name = "rebuilder"
+
+[indexer]
+Urls = ["https://cid.contact","https://index-finder.kencloud.com","https://index-finder-piknik.kencloud.com","https://index-finder-sxx.kencloud.com"]
+
+[lotus]
+FullNodeApi = "https://api.node.glif.io"
+DownloadDir="/opt/data/"
+Address="f3xxxxxxxx"
+
+[uploader]
+IpfsUrls = ["https://upload.example.com;https://download.example.com","https://upload.example2.com;https://download.example2.com"]
