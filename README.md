@@ -19,7 +19,7 @@
 
  - Install and Compile
 ```shell
-git clone https://github.com/Fogmeta/filecoin-ipfs-data-rebuilder.git
+git clone https://github.com/Fogmeta/Rebuilder.git
 cd filecoin-ipfs-data-rebuilder
 make
 ```
