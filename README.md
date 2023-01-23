@@ -1,8 +1,9 @@
 # FogMeta-Data-Rebuilder
 
-## Features
-
 FogMeta Data Rebuilder (Replication and Repair) is a guaranteed storage service based on FEVM contract. It guarantees N replicas stored on filecoin network, 50% of the storage fund locked in FEVM contract will be used for the initial storage copies and the remaining 50% will be used for future replication when the data replicas loss occurs within the term. The reserved fee percentile is based on the current average storage provider failure rate. Assuming the current failure rate per SP is 30% in the term, with 99.99% SLA, we need to maintain 8 replicas all the time. When a replicas loss occurs, a 5% fee will be used for the fee of the replica deal, and unused funds in the contract will be refunded to the user after the term expired. The project won the Data Dao hackathon in 2022. The v1 has provided the following functions: Build (IPFS To Filecoin): upload the data to the IPFS gateway and keep 8 replicas to the Filecoin network. Reload (Filecoin To IPFS):
+
+
+## Features
 
  - **Build** (IPFS To Filecoin): Use the [MCS SDK](https://docs.filswan.com/multi-chain-storage/developer-quickstart/sdk) upload the data to the IPFS node, and **build** at leat 5 cold backups to the  Filecoin network.
  - **Rebuild** (Filecoin To IPFS): 
@@ -10,8 +11,16 @@ FogMeta Data Rebuilder (Replication and Repair) is a guaranteed storage service 
 	 - Get the storage providers IDs from the [Filecoin Network](https://github.com/filecoin-project/lotus/blob/master/api/v0api/full.go)
 	 - Retrieve the data from the storage providers using [Lotus](https://github.com/filecoin-project/lotus)
 	 - **Rebuild** the data to the IPFS nodes
- - **Auto-Discover** (IPFS): Rebuilder will check automatically if the IPFS node is healthy, the bad IPFS node can be **discovered** in time
- - **Auto-Rebuild**: The bad IPFS nodes will be removed, and if the hot-backup is 0, Rebuilder will auto-rebuild it from Filecoin network. 
+* **CID-Discover (IPFS)**: Rebuilder will check if the data content available on the IPFS gateway 
+* **Auto-Rebuild**: once the lost data cid is found, the auto-rebuild process will trigger and reload data from the storage provider to the target IPFS gateway.
+
+**Work to be done**
+
+- Auto-replica: if the current count of replicas is below a threshold of 3/5, the auto-replica process will be triggered, and the cost will be deducted from the perpetual smart contract for the deal cost to store on replica storage providers. 
+
+- Funding contract: auto payment for a replica, funds lock, refund
+
+- Further work: used fund for group storage insurance, locked fund in defi yield farming
 
 ## Installation
 
