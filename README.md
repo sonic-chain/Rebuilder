@@ -1,8 +1,8 @@
-# filecoin-ipfs-data-rebuilder
+# FogMeta-Data-Rebuilder
 
 ## Features
 
-`filecoin-ipfs-data-rebuilder` is a data build-and-rebuild tool between the IPFS network and the Filecoin network. It provides the following functions:
+FogMeta Data Rebuilder (Replication and Repair) is a guaranteed storage service based on FEVM contract. It guarantees N replicas stored on filecoin network, 50% of the storage fund locked in FEVM contract will be used for the initial storage copies and the remaining 50% will be used for future replication when the data replicas loss occurs within the term. The reserved fee percentile is based on the current average storage provider failure rate. Assuming the current failure rate per SP is 30% in the term, with 99.99% SLA, we need to maintain 8 replicas all the time. When a replicas loss occurs, a 5% fee will be used for the fee of the replica deal, and unused funds in the contract will be refunded to the user after the term expired. The project won the Data Dao hackathon in 2022. The v1 has provided the following functions: Build (IPFS To Filecoin): upload the data to the IPFS gateway and keep 8 replicas to the Filecoin network. Reload (Filecoin To IPFS):
 
  - **Build** (IPFS To Filecoin): Use the [MCS SDK](https://docs.filswan.com/multi-chain-storage/developer-quickstart/sdk) upload the data to the IPFS node, and **build** at leat 5 cold backups to the  Filecoin network.
  - **Rebuild** (Filecoin To IPFS): 
