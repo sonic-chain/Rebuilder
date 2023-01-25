@@ -24,7 +24,7 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
-                "summary": "根据cid从filecoin检索文件存储到ipfs",
+                "summary": "Retrieve file storage from filecoin to ipfs based on cid",
                 "parameters": [
                     {
                         "type": "string",
@@ -55,7 +55,7 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
-                "summary": "获取文件存储信息列表",
+                "summary": "Get a list of file storage information",
                 "parameters": [
                     {
                         "type": "string",
@@ -65,20 +65,20 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "页码，默认从0开始",
+                        "description": "Page number, starting from 0 by default",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "条数，默认为20条",
+                        "description": "By default, there are 20 lines.",
                         "name": "size",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "正常返回的数据格式",
+                        "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
@@ -112,10 +112,10 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
-                "summary": "更新rebuilder任务的状态",
+                "summary": "Update the status of the rebuilder task",
                 "parameters": [
                     {
-                        "description": "请求参数",
+                        "description": "request parameters",
                         "name": "data",
                         "in": "body",
                         "required": true,
@@ -145,10 +145,10 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
-                "summary": "汇总信息展示",
+                "summary": "Summary information display",
                 "responses": {
                     "200": {
-                        "description": "正常返回的数据格式",
+                        "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
@@ -230,6 +230,9 @@ const docTemplate = `{
                     }
                 },
                 "mcs_status": {
+                    "type": "string"
+                },
+                "not_found_provider": {
                     "type": "string"
                 },
                 "providers": {
