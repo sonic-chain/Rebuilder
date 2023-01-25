@@ -19,9 +19,9 @@ import (
 
 var log = logging.Logger("service")
 
-// @Summary 汇总信息展示
+// @Summary Summary information display
 // @Produce  json
-// @Success 200 {object} internal.Response{data=service.SummaryResp} "正常返回的数据格式"
+// @Success 200 {object} internal.Response{data=service.SummaryResp}
 // @Failure 500 {object} internal.Response
 // @Router /summary [get]
 func Summary(c *gin.Context) {
@@ -90,9 +90,9 @@ func Summary(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, summary)
 }
 
-// @Summary 更新rebuilder任务的状态
+// @Summary Update the status of the rebuilder task
 // @Accept  json
-// @Param   data	body	service.RebuildStatusReq  true	"请求参数"
+// @Param   data	body	service.RebuildStatusReq  true	"request parameters"
 // @Produce  json
 // @Success 200 {object} internal.Response
 // @Failure 500 {object} internal.Response
@@ -114,12 +114,12 @@ func RebuildStatus(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, "")
 }
 
-// @Summary 获取文件存储信息列表
+// @Summary Get a list of file storage information
 // @Produce  json
 // @param	field_name	query	string	false	"data_cid/file_name"
-// @param	page		query	int		false	"页码，默认从0开始"
-// @param	size		query	int		false	"条数，默认为20条"
-// @Success 200 {object} internal.Response{data=service.FileSourcePager} "正常返回的数据格式"
+// @param	page		query	int		false	"Page number, starting from 0 by default"
+// @param	size		query	int		false	"By default, there are 20 lines."
+// @Success 200 {object} internal.Response{data=service.FileSourcePager}
 // @Failure 500 {object} internal.Response
 // @Router /files [get]
 func GetSourceList(c *gin.Context) {
@@ -191,7 +191,7 @@ func GetSourceList(c *gin.Context) {
 	})
 }
 
-// @Summary 根据cid从filecoin检索文件存储到ipfs
+// @Summary Retrieve file storage from filecoin to ipfs based on cid
 // @Produce  json
 // @Param cid path string true "ID"
 // @Success 200 {object} internal.Response
@@ -306,7 +306,7 @@ func GetCid(c *gin.Context) {
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
-		"msg": "已经提交处理中",
+		"msg": "Submitted for processing",
 	})
 }
 

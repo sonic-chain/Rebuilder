@@ -10,9 +10,6 @@ import (
 	goipfs "github.com/ipfs/go-ipfs-api"
 )
 
-// targetFile 包含全路径的目标文件名
-// h 上传成功后，ipfs节点返回的文件cid
-// u 上传成功后，ipfs节点下载链接
 func UploaderFile(targetFile string, ipfsApiUrls []string) (h []string, u []string) {
 	//fmt.Println("Uploader Start...")
 
@@ -64,8 +61,6 @@ func UploaderDir(targetDir string, ipfsApiUrls []string) (h []string) {
 	return dirHash
 }
 
-//downUrl  下载url
-//tarFile  下载文件保存 路径/文件名
 func Downloader(downUrl string, tarFile string) bool {
 	//fmt.Println("Downloader Start...")
 
