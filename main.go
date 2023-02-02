@@ -46,3 +46,32 @@ func main() {
 		log.Infof("Server err: %v", err)
 	}
 }
+
+//func main() {
+//
+//	localFileName := "/Users/sonic/Documents/go_work/Rebuilder/李信-王者荣耀.jpg"
+//	filePaths := strings.Split(localFileName, "/")
+//	objectName := path.Join(time.Now().Format("2006-01-02"), filePaths[len(filePaths)-1])
+//
+//	uploadFile, err := mcs.UploadFile(context.TODO(), "rebuilder", objectName, localFileName)
+//	if err != nil {
+//		log.Fatal(err)
+//		return
+//	}
+//	fmt.Printf("%+v \n", string(uploadFile))
+//
+//	ipfsUrl, err := mcs.GetFile(context.TODO(), "rebuilder", objectName)
+//	if err != nil {
+//		log.Fatal(err)
+//		return
+//	}
+//	fmt.Printf("ipfsUrl: %s \n", ipfsUrl)
+//
+//	buckets, err := mcs.GetBuckets(context.TODO())
+//	if err != nil {
+//		log.Fatal(err)
+//		return
+//	}
+//	fmt.Printf("buckets: %+v \n", buckets)
+//
+//}

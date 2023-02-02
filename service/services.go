@@ -1,10 +1,13 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/client/mcs"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -255,7 +258,8 @@ func GetCid(c *gin.Context) {
 			}
 			model.UpdateMinerDealStatus(cid, model.SUCCESS_MINER_STATUS)
 
-			savePath := filepath.Join(model.LotusSetting.DownloadDir, minerId+"-"+cid)
+			fileName := minerId + "-" + cid
+			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
 			// 3. retrieveData
 			model.UpdateMinerDealStatus(cid, model.START_RETRIEVE_STATUS)
 			if err := lotusClient.RetrieveData(minerId, cid, savePath); err != nil {
@@ -270,6 +274,12 @@ func GetCid(c *gin.Context) {
 			stat, err := os.Stat(savePath)
 			if err != nil {
 				log.Errorf("not found savepath: %s,error: %s", savePath, err)
+				return
+			}
+
+			objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
+			if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
+
 				return
 			}
 
@@ -308,6 +318,33 @@ func GetCid(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
 		"msg": "Submitted for processing",
 	})
+}
+
+// @Summary Upload file
+// @Accept  json
+// @Param   data	body	service.RebuildStatusReq  true	"request parameters"
+// @Produce  json
+// @Success 200 {object} internal.Response
+// @Failure 500 {object} internal.Response
+// @Router /rebuild/status [post]
+func UploadFile(c *gin.Context) {
+	appG := internal.Gin{C: c}
+	file, err := c.FormFile("file")
+	if err != nil {
+		appG.Response(http.StatusBadRequest, internal.INVALID_PARAMS, internal.GetMsg(internal.INVALID_PARAMS))
+		return
+	}
+
+	basePath := "./upload/"
+	filename := basePath + filepath.Base(file.Filename)
+	if err := c.SaveUploadedFile(file, filename); err != nil {
+		appG.Response(http.StatusInternalServerError, internal.ERROR_UPLOAD_FAIL, internal.GetMsg(internal.ERROR_UPLOAD_FAIL))
+		return
+	}
+
+	// 上传完更新数据库；
+
+	appG.Response(http.StatusOK, internal.SUCCESS, "Uploaded successfully!")
 }
 
 func AutoUploadFileToIpfs() {
@@ -383,7 +420,7 @@ func AutoUploadFileToIpfs() {
 						}
 						model.UpdateMinerDealStatus(cid, model.SUCCESS_RETRIEVE_STATUS)
 
-						// 4. upload file to ipfs  ERROR_UPLOAD_FAIL
+						// 4. upload file to ipfs
 						model.UpdateMinerDealStatus(cid, model.START_IPFS_STATUS)
 
 						stat, err := os.Stat(savePath)

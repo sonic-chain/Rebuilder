@@ -42,7 +42,7 @@ func (g *Gin) Response(httpCode, errCode int, data interface{}) {
 // MarkErrors logs error logs
 func MarkErrors(errors []*validation.Error) {
 	for _, err := range errors {
-		log.Info(err.Key, err.Message)
+		log.Errorln(err.Key, err.Message)
 	}
 
 	return
