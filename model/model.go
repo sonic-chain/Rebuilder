@@ -41,6 +41,7 @@ func InsertSourceFile(sf *SourceFile) {
 }
 
 type FileIpfs struct {
+	gorm.Model
 	DataCid string `json:"data_cid"`
 	IpfsUrl string `json:"ipfs_url"`
 }
