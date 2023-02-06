@@ -437,7 +437,7 @@ func Retrieve(c *gin.Context) {
 						return nil
 					})
 					sf.RebuildStatus = model.REBUILD_SUCCESS
-					model.InsertSourceFile(&sf)
+					model.UpdateSourceFile(&sf)
 					os.RemoveAll(savePath)
 				}
 			}
@@ -449,7 +449,7 @@ func Retrieve(c *gin.Context) {
 			sf.FileSize = stat.Size()
 			sf.FileName = retrieveReq.DataCid
 			sf.RebuildStatus = model.REBUILD_FAILED
-			model.InsertSourceFile(&sf)
+			model.UpdateSourceFile(&sf)
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{

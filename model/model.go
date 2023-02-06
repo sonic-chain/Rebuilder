@@ -40,8 +40,8 @@ func CreateSourceFile(sf *SourceFile) {
 	db.Model(&SourceFile{}).Create(sf)
 }
 
-func InsertSourceFile(sf *SourceFile) {
-	db.Model(&SourceFile{}).Save(sf)
+func UpdateSourceFile(sf *SourceFile) {
+	db.Model(&SourceFile{}).Where("data_cid=?", sf.DataCid).Updates(&sf)
 }
 
 type FileIpfs struct {
