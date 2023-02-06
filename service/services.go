@@ -315,9 +315,13 @@ func Retrieve(c *gin.Context) {
 		appG.Response(http.StatusBadRequest, internal.INVALID_PARAMS, internal.GetMsg(internal.INVALID_PARAMS))
 	}
 
+	var sf model.SourceFile
+	sf.DataCid = retrieveReq.DataCid
+	sf.CreateAt = time.Now()
+	model.InsertSourceFile(&sf)
+
 	model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_INDEXING)
 	peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, retrieveReq.DataCid)
-
 	peerIds := make(map[string]string, 0)
 	for _, data := range peerData {
 		if string(data) == "no results for query" {
@@ -359,6 +363,12 @@ func Retrieve(c *gin.Context) {
 				log.Warnf("get minerpeer failed,peerId:%s,error: %v,continue check next peerId", peerId, err)
 				continue
 			}
+
+			var fm model.FileMiner
+			fm.DataCid = retrieveReq.DataCid
+			fm.MinerId = mp.MinerId
+			fm.Status = "StorageDealActive"
+			model.InsertFileMiner(&fm)
 
 			fileName := mp.MinerId + "-" + retrieveReq.DataCid
 			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
@@ -407,7 +417,13 @@ func Retrieve(c *gin.Context) {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
 					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_SUCCESS)
 					successFlag = true
+					var sf model.SourceFile
+					sf.DataCid = retrieveReq.DataCid
+					sf.FileSize = stat.Size()
+					sf.FileName = retrieveReq.DataCid
+					model.InsertSourceFile(&sf)
 					os.RemoveAll(savePath)
+
 				}
 			}
 			break
@@ -419,8 +435,6 @@ func Retrieve(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
 		"msg": "Submitted for processing",
 	})
-
-	appG.Response(http.StatusOK, internal.SUCCESS, "Retrieving successfully!")
 }
 
 func WatchIpfsNodeData() {
