@@ -12,7 +12,7 @@ The reserved fee percentile is based on the current average storage provider fai
 	- Find the storage providers' peerIds by the [Indexer node](https://github.com/filecoin-project/index-provider) 
 	- Get the storage providers IDs from the [Filecoin Network](https://github.com/filecoin-project/lotus/blob/master/api/v0api/full.go)
 	- Retrieve the data from the storage providers using [Lotus](https://github.com/filecoin-project/lotus)
-	- **Rebuild** the data to the IPFS nodes
+	- Upload the data to the IPFS nodes
 * **CID-Discover (IPFS)**: Rebuilder will check if the data content is available on the IPFS gateway 
 * **Auto-Rebuild**: once the lost data cid is found, the auto-rebuild process will trigger and reload data from the storage provider to the target IPFS gateway.
 
