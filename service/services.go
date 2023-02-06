@@ -242,12 +242,12 @@ func GetCid(c *gin.Context) {
 				}
 			} else {
 				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
-				if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
+				if _, err = mcs.UploadFile(context.TODO(), model.BUCKET_NAME, objectName, savePath); err != nil {
 					log.Errorf("upload file to mcs bucket failed, error: %+v", err)
 					model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
 					return
 				}
-				fileUrl, err := mcs.GetFile(context.TODO(), "rebuilder", objectName)
+				fileUrl, err := mcs.GetFile(context.TODO(), model.BUCKET_NAME, objectName)
 				if err != nil {
 					log.Errorf("get file from mcs bucket failed, error: %+v", err)
 					model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
