@@ -10,13 +10,13 @@ type RebuildStatus string
 
 const (
 	REBUILD_INDEXING          RebuildStatus = "Indexing"
-	REBUILD_INDEXING_FAILED   RebuildStatus = "Indexing-failed"
+	REBUILD_INDEXING_FAILED   RebuildStatus = "Indexing failed"
 	REBUILD_RETRIEVING        RebuildStatus = "Retrieving"
-	REBUILD_RETRIEVING_FAILED RebuildStatus = "Retrieving-failed"
+	REBUILD_RETRIEVING_FAILED RebuildStatus = "Retrieving failed"
 	REBUILD_UPLOADING         RebuildStatus = "Uploading"
-	REBUILD_UPLOADING_FAILED  RebuildStatus = "Uploading-failed"
-	REBUILD_SUCCESS           RebuildStatus = "Rebuild-Successful"
-	REBUILD_FAILED            RebuildStatus = "Rebuild-failed"
+	REBUILD_UPLOADING_FAILED  RebuildStatus = "Uploading failed"
+	REBUILD_SUCCESS           RebuildStatus = "Rebuild successful"
+	REBUILD_FAILED            RebuildStatus = "Rebuild failed"
 
 	BUCKET_NAME string = "rebuilder"
 )
