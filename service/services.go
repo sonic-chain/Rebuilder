@@ -171,31 +171,6 @@ func GetCid(c *gin.Context) {
 	cid := com.StrTo(c.Param("cid")).String()
 	//  1. query peerId by indexer node
 	model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING)
-	peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, cid)
-
-	peerIds := make(map[string]string, 0)
-	for _, data := range peerData {
-		if string(data) == "no results for query" {
-			continue
-		}
-		var indexData IndexData
-		if err := json.Unmarshal(data, &indexData); err != nil {
-			log.Errorf("change to json failed,error: %v", err)
-			model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
-			continue
-		}
-		if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
-			peerId := indexData.MultihashResults[0].ProviderResults[0].Provider.ID
-			peerIds[peerId] = peerId
-		}
-	}
-	if len(peerIds) == 0 {
-		model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
-		appG.Response(http.StatusInternalServerError, internal.ERROR_RETRIEVE_FAIL, nil)
-		return
-	} else {
-		model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING)
-	}
 
 	go func() {
 		defer func() {
@@ -203,6 +178,32 @@ func GetCid(c *gin.Context) {
 				fmt.Printf("catch panic error message: %v \n", err)
 			}
 		}()
+
+		peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, cid)
+
+		peerIds := make(map[string]string, 0)
+		for _, data := range peerData {
+			if string(data) == "no results for query" {
+				continue
+			}
+			var indexData IndexData
+			if err := json.Unmarshal(data, &indexData); err != nil {
+				log.Errorf("change to json failed,error: %v", err)
+				model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
+				continue
+			}
+			if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
+				peerId := indexData.MultihashResults[0].ProviderResults[0].Provider.ID
+				peerIds[peerId] = peerId
+			}
+		}
+		if len(peerIds) == 0 {
+			model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
+			appG.Response(http.StatusInternalServerError, internal.ERROR_RETRIEVE_FAIL, nil)
+			return
+		} else {
+			model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING)
+		}
 
 		var successFlag bool
 		lotusClient := common.NewLotusClient()
