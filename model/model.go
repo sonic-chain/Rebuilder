@@ -42,7 +42,7 @@ func InsertSourceFile(sf *SourceFile) {
 
 type FileIpfs struct {
 	DataCid string `json:"data_cid" gorm:"primaryKey"`
-	IpfsUrl string `json:"ipfs_url"`
+	IpfsUrl string `json:"ipfs_url" gorm:"primaryKey"`
 }
 
 func (FileIpfs) TableName() string {

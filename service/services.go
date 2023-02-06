@@ -137,9 +137,7 @@ func GetSourceList(c *gin.Context) {
 		}
 		fsr.IpfsUrls = ipfsUrls
 		fsr.HotBackups = len(ipfsUrls)
-		if len(ipfsUrls) == 0 {
-			fsr.RebuildStatus = true
-		}
+		fsr.RebuildStatus = true
 
 		providerStatus := make([]ProviderInfo, 0)
 		for _, p := range fileSource.MinerIds {
@@ -272,7 +270,7 @@ func GetCid(c *gin.Context) {
 			}
 			break
 		}
-		if successFlag {
+		if !successFlag {
 			model.UpdateSourceFileStatus(cid, model.REBUILD_SUCCESS_FAILED)
 		}
 	}()
