@@ -86,7 +86,7 @@ func CountFileSourceList(fieldName string, size int64) (int64, int64, error) {
 	var num, page int64
 	var err error
 	if fieldName != "" {
-		err = db.Model(&SourceFile{}).Where("payload_cid LIKE ?", "%"+fieldName+"%").Or("file_name LIKE ?", "%"+fieldName+"%").
+		err = db.Model(&SourceFile{}).Where("data_cid LIKE ?", "%"+fieldName+"%").Or("file_name LIKE ?", "%"+fieldName+"%").
 			Order("create_at").Count(&num).Error
 	} else {
 		err = db.Model(&SourceFile{}).Order("create_at").Count(&num).Error
