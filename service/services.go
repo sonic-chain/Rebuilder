@@ -376,6 +376,7 @@ func Retrieve(c *gin.Context) {
 			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
 			// 3. retrieveData
 			if err := lotusClient.RetrieveData(mp.MinerId, retrieveReq.DataCid, savePath); err != nil {
+				log.Errorf("lotus RetrieveData failed, error: %+v", err)
 				model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_RETRIEVING_FAILED)
 				continue
 			}
@@ -384,7 +385,7 @@ func Retrieve(c *gin.Context) {
 			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING)
 			stat, err = os.Stat(savePath)
 			if err != nil {
-				log.Errorf("not found savepath: %s,error: %s", savePath, err)
+				log.Errorf("not found savepath: %s,error: %+v", savePath, err)
 				return
 			}
 
