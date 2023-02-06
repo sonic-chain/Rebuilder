@@ -7,7 +7,7 @@ The reserved fee percentile is based on the current average storage provider fai
 
 ## Features
 
- - **Build** (IPFS To Filecoin): Use the [MCS SDK](https://docs.filswan.com/multi-chain-storage/developer-quickstart/sdk) upload the data to the IPFS node.
+ - **Build** (IPFS To Filecoin): Use the [MCS SDK](https://docs.filswan.com/multi-chain-storage/developer-quickstart/sdk) to upload the data to the IPFS node.
  - **Rebuild** (Filecoin To IPFS): 
 	- Find the storage providers' peerIds by the [Indexer node](https://github.com/filecoin-project/index-provider) 
 	- Get the storage providers IDs from the [Filecoin Network](https://github.com/filecoin-project/lotus/blob/master/api/v0api/full.go)
