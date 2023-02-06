@@ -354,6 +354,7 @@ func Retrieve(c *gin.Context) {
 		}()
 
 		var successFlag bool
+		var stat os.FileInfo
 		lotusClient := common.NewLotusClient()
 		for _, peerId := range peerIds {
 			log.Infof("start process peerId: %s", peerId)
@@ -380,7 +381,7 @@ func Retrieve(c *gin.Context) {
 
 			// 4. upload file to ipfs
 			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING)
-			stat, err := os.Stat(savePath)
+			stat, err = os.Stat(savePath)
 			if err != nil {
 				log.Errorf("not found savepath: %s,error: %s", savePath, err)
 				return
@@ -415,21 +416,25 @@ func Retrieve(c *gin.Context) {
 			}
 			if len(fileIpfs) > 0 {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
-					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_SUCCESS)
 					successFlag = true
 					var sf model.SourceFile
 					sf.DataCid = retrieveReq.DataCid
 					sf.FileSize = stat.Size()
 					sf.FileName = retrieveReq.DataCid
+					sf.RebuildStatus = model.REBUILD_SUCCESS
 					model.InsertSourceFile(&sf)
 					os.RemoveAll(savePath)
-
 				}
 			}
 			break
 		}
 		if !successFlag {
-			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_FAILED)
+			var sf model.SourceFile
+			sf.DataCid = retrieveReq.DataCid
+			sf.FileSize = stat.Size()
+			sf.FileName = retrieveReq.DataCid
+			sf.RebuildStatus = model.REBUILD_FAILED
+			model.InsertSourceFile(&sf)
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
