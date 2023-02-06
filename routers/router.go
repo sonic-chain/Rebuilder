@@ -20,7 +20,7 @@ func InitRouter() *gin.Engine {
 		apiv1.GET("/files", service.GetSourceList)
 		apiv1.GET("/cid/:cid", service.GetCid)
 		apiv1.GET("/summary", service.Summary)
-		apiv1.POST("/rebuild/status", service.RebuildStatus)
+		//apiv1.POST("/rebuild/status", service.RebuildStatus)
 		apiv1.POST("/upload", service.UploadFile)
 	}
 	return r

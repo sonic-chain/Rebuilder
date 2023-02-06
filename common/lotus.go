@@ -3,6 +3,7 @@ package common
 import (
 	"archive/tar"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/model"
@@ -15,6 +16,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +46,7 @@ func NewLotusClient(timeout ...int64) *lotusClient {
 		log.Errorf("init lotusClient could not get DialArgs: %w", err)
 		return nil
 	}
-	log.Infof("using raw API endpoint: %s", addr)
+	//log.Infof("using raw API endpoint: %s", addr)
 	fullNode, closer, err := client.NewFullNodeRPCV1(ctx, addr, ainfo.AuthHeader())
 	if err != nil {
 		if closer != nil {
@@ -82,28 +85,11 @@ func (lotus *lotusClient) GetMinerIdByPeerId(peerId string) (string, error) {
 	}
 }
 
-func updateMinerIAndPeerId() {
-	miners, err := NewLotusClient().ListMiners()
-	if err != nil {
-		log.Errorf("get miners failed,error: %v", err)
-		return
-	}
-	//ndm, err := NewLotusClient().getDealsCounts()
-	//if err != nil {
-	//	log.Errorf("get deals failed,error: %v", err)
-	//	return
-	//}
-	//sort.Slice(miners, func(i, j int) bool {
-	//	return ndm[miners[i]] > ndm[miners[j]]
-	//})
-
-	minerIdCh := make(chan string, 0)
+func SaveMinerIAndPeerId() {
+	minerIdCh := make(chan string, 100)
 	minerPeerCh := make(chan model.MinerPeer, 0)
 	go func() {
-		var count int
 		for minerId := range minerIdCh {
-			count++
-			log.Infof("number: %d,GetMinerInfoByFId, minerId: %s", count, minerId)
 			peerId, err := NewLotusClient(10).GetMinerInfoByFId(minerId)
 			if err != nil {
 				log.Errorf("get minerInfo failed,error: %v", err)
@@ -113,44 +99,86 @@ func updateMinerIAndPeerId() {
 				MinerId: minerId,
 				PeerId:  peerId,
 			}
+			time.Sleep(100 * time.Millisecond)
 		}
+		close(minerPeerCh)
 	}()
 	go func() {
 		var count int8
 		mp := make([]model.MinerPeer, 0)
 		for minerPeer := range minerPeerCh {
 			mp = append(mp, minerPeer)
-			if count > 50 {
-				model.InsertMinerPeer(mp)
+			if count > 100 {
+				model.InsertMinerPeers(mp)
 				mp = make([]model.MinerPeer, 0)
 			}
 			count++
 		}
 		if len(mp) > 0 {
-			model.InsertMinerPeer(mp)
+			model.InsertMinerPeers(mp)
 		}
 	}()
 
-	for _, m := range miners {
-		minerIdCh <- m.String()
+	miners := model.GetMiners()
+	for _, miner := range miners {
+		minerIdCh <- miner.MinerId
 	}
 	close(minerIdCh)
 }
 
+func SaveMinerByBrowser() {
+	for page := 0; page < 500; page++ {
+		log.Infof("page=%d", page)
+		exitFlag, err := getMiner(page)
+		time.Sleep(3 * time.Second)
+		if err != nil {
+			continue
+		}
+		if exitFlag {
+			break
+		}
+	}
+}
+
+func getMiner(page int) (bool, error) {
+	resp, err := http.Get(fmt.Sprintf("https://filfox.info/api/v1/miner/list/power?pageSize=50&page=%d", page))
+	if err != nil {
+		log.Errorf("get resp error: %v", err)
+		return false, err
+	}
+	defer resp.Body.Close()
+	if bytes, err := ioutil.ReadAll(resp.Body); err == nil {
+		var minerData MinerData
+		if err = json.Unmarshal(bytes, &minerData); err != nil {
+			log.Errorf("resp to json error: %v", err)
+			return false, err
+		}
+
+		if len(minerData.Miners) == 0 {
+			return true, nil
+		}
+
+		mps := make([]model.Miner, 0)
+		for _, addr := range minerData.Miners {
+			mps = append(mps, model.Miner{
+				MinerId: addr.Address,
+			})
+		}
+		model.InsertMiners(mps)
+	}
+	return false, err
+}
+
 func (lotus *lotusClient) GetMinerInfoByFId(minerId string) (string, error) {
 	defer lotus.closer()
-	addr, err := address.NewFromString(minerId)
-	if err != nil {
-		log.Errorf("init address failed, minerId: %s,error: %v", minerId, err)
-		return "", err
-	}
+	addr, _ := address.NewFromString(minerId)
 	minerInfo, err := lotus.node.StateMinerInfo(context.TODO(), addr, types.EmptyTSK)
 	if err != nil {
-		log.Errorf("get minerInfo failed, minerId: %s,error: %v", minerId, err)
+		log.Errorf("get minerInfo failed, minerId: %s,error: %v", addr.String(), err)
 		return "", err
 	}
 	if minerInfo.PeerId == nil {
-		return "", errors.New(fmt.Sprintf("minerId:[%s],peerId is nil", minerId))
+		return "", errors.New(fmt.Sprintf("minerId:[%s],peerId is nil", addr.String()))
 	}
 	return minerInfo.PeerId.String(), nil
 }
@@ -308,4 +336,10 @@ func ArchiveDir(src, out string) error {
 		return err
 	}
 	return nil
+}
+
+type MinerData struct {
+	Miners []struct {
+		Address string `json:"address"`
+	} `json:"miners"`
 }

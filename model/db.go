@@ -29,9 +29,10 @@ func SetupDB() {
 	}
 
 	db.AutoMigrate(
-		&MinerDeal{},
+		//&MinerDeal{},
 		&SourceFile{},
 		&FileIpfs{},
 		&MinerPeer{},
+		&FileMiner{},
 	)
 }

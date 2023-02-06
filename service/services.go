@@ -5,19 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/client/mcs"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"time"
-
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/common"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/internal"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/model"
 	"github.com/gin-gonic/gin"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/unknwon/com"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
 )
 
 var log = logging.Logger("service")
@@ -40,7 +39,7 @@ func Summary(c *gin.Context) {
 
 	deals, err := model.CountDealByMinerDeal()
 	if err != nil {
-		log.Errorf("Summary get IpfsNodeCount failed,error: %v", err)
+		log.Errorf("Summary get CountDealByMinerDeal failed,error: %v", err)
 		appG.Response(http.StatusInternalServerError, internal.ERROR_SUMMARY_FAIL, nil)
 		return
 	}
@@ -93,30 +92,6 @@ func Summary(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, summary)
 }
 
-// @Summary Update the status of the rebuilder task
-// @Accept  json
-// @Param   data	body	service.RebuildStatusReq  true	"request parameters"
-// @Produce  json
-// @Success 200 {object} internal.Response
-// @Failure 500 {object} internal.Response
-// @Router /rebuild/status [post]
-func RebuildStatus(c *gin.Context) {
-	appG := internal.Gin{C: c}
-	var rebuildStatus RebuildStatusReq
-	if err := c.ShouldBindJSON(&rebuildStatus); err != nil {
-		appG.Response(http.StatusBadRequest, internal.INVALID_PARAMS, internal.GetMsg(internal.INVALID_PARAMS))
-	}
-
-	model.InsertFileIpfs([]model.FileIpfs{{
-		DataCid: rebuildStatus.DataCid,
-		IpfsUrl: rebuildStatus.IpfsUrl,
-	}})
-
-	model.UpdateSourceFileStatusByUploadId(rebuildStatus.DataCid, rebuildStatus.SourceFileUploadId, "Processing", "")
-
-	appG.Response(http.StatusOK, internal.SUCCESS, "")
-}
-
 // @Summary Get a list of file storage information
 // @Produce  json
 // @param	field_name	query	string	false	"data_cid/file_name"
@@ -143,7 +118,6 @@ func GetSourceList(c *gin.Context) {
 		return
 	}
 
-	failedSources := model.FindFailedSource()
 	sourceList, err := model.FileSourceList(fieldName, page, size)
 	if err != nil {
 		appG.Response(http.StatusInternalServerError, internal.ERROR_FILE_LIST_FAIL, nil)
@@ -154,35 +128,29 @@ func GetSourceList(c *gin.Context) {
 	for _, fileSource := range sourceList {
 		var fsr FileSourceResp
 		fsr.FileName = fileSource.FileName
-		fsr.DataCid = fileSource.PayloadCid
+		fsr.DataCid = fileSource.DataCid
 		fsr.FileSize = fileSource.FileSize
-		fsr.McsStatus = fileSource.Status
-		fsr.UploadId = fileSource.UploadId
 
-		ipfsUrls, err := model.FindIpfsByDataCid(fileSource.PayloadCid)
-		if err != nil {
-			log.Errorf("FindIpfsBySourceId failed, datacid: %s,error: %v", fileSource.PayloadCid, err)
-			continue
+		ipfsUrls := make([]string, 0)
+		for _, url := range fileSource.IpfsUrls {
+			ipfsUrls = append(ipfsUrls, url.IpfsUrl)
 		}
 		fsr.IpfsUrls = ipfsUrls
 		fsr.HotBackups = len(ipfsUrls)
+		if len(ipfsUrls) == 0 {
+			fsr.RebuildStatus = true
+		}
 
-		if _, ok := failedSources[fileSource.PayloadCid]; !ok {
-			providers, err := model.FindProvidersByPayloadCid(fileSource.PayloadCid)
-			if err != nil {
-				log.Errorf("FindProvidersByPayloadCid failed, payload_cid: %s,error: %v", fileSource.PayloadCid, err)
-				continue
-			}
-			providerStatus := make([]ProviderInfo, 0)
-			for _, p := range providers {
-				providerStatus = append(providerStatus, ProviderInfo{
-					ProviderId: p.MinerId,
-					Status:     p.Status,
-				})
-			}
-			fsr.Providers = providerStatus
-			fsr.ColdBackups = len(providers)
-		} else {
+		providerStatus := make([]ProviderInfo, 0)
+		for _, p := range fileSource.MinerIds {
+			providerStatus = append(providerStatus, ProviderInfo{
+				ProviderId: p.MinerId,
+				Status:     p.Status,
+			})
+		}
+		fsr.Providers = providerStatus
+		fsr.ColdBackups = len(providerStatus)
+		if len(providerStatus) == 0 {
 			fsr.NotFoundProvider = internal.GetMsg(internal.ERROR_RETRIEVE_FAIL)
 		}
 		result = append(result, fsr)
@@ -204,7 +172,7 @@ func GetCid(c *gin.Context) {
 	appG := internal.Gin{C: c}
 	cid := com.StrTo(c.Param("cid")).String()
 	//  1. query peerId by indexer node
-	model.UpdateMinerDealStatus(cid, model.START_PEER_STATUS)
+	model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING)
 	peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, cid)
 
 	peerIds := make(map[string]string, 0)
@@ -215,7 +183,7 @@ func GetCid(c *gin.Context) {
 		var indexData IndexData
 		if err := json.Unmarshal(data, &indexData); err != nil {
 			log.Errorf("change to json failed,error: %v", err)
-			model.UpdateMinerDealStatus(cid, model.FAILED_PEER_STATUS)
+			model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
 			continue
 		}
 		if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
@@ -224,17 +192,11 @@ func GetCid(c *gin.Context) {
 		}
 	}
 	if len(peerIds) == 0 {
-		model.UpdateMinerDealStatus(cid, model.FAILED_PEER_STATUS)
-		model.InsertFailedSource(model.FailedSource{
-			PayloadCid: cid,
-		})
+		model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
 		appG.Response(http.StatusInternalServerError, internal.ERROR_RETRIEVE_FAIL, nil)
 		return
 	} else {
-		model.UpdateMinerDealStatus(cid, model.SUCCESS_PEER_STATUS)
-		model.DeleteFailedSource(model.FailedSource{
-			PayloadCid: cid,
-		})
+		model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING)
 	}
 
 	go func() {
@@ -244,33 +206,27 @@ func GetCid(c *gin.Context) {
 			}
 		}()
 
+		var successFlag bool
 		lotusClient := common.NewLotusClient()
 		for _, peerId := range peerIds {
 			log.Infof("start process peerId: %s", peerId)
-			// 2. query minerId by lotus
-			model.UpdateMinerDealStatus(cid, model.START_MINER_STATUS)
-
-			minerId, err := lotusClient.GetMinerIdByPeerId(peerId)
+			// 2. query minerId
+			mp, err := model.FindMinerPeer(peerId)
 			if err != nil {
 				log.Warnf("get minerpeer failed,peerId:%s,error: %v,continue check next peerId", peerId, err)
-				model.UpdateMinerDealStatus(cid, model.FAILED_MINER_STATUS)
 				continue
 			}
-			model.UpdateMinerDealStatus(cid, model.SUCCESS_MINER_STATUS)
 
-			fileName := minerId + "-" + cid
+			fileName := mp.MinerId + "-" + cid
 			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
 			// 3. retrieveData
-			model.UpdateMinerDealStatus(cid, model.START_RETRIEVE_STATUS)
-			if err := lotusClient.RetrieveData(minerId, cid, savePath); err != nil {
-				model.UpdateMinerDealStatus(cid, model.FAILED_RETRIEVE_STATUS)
+			if err := lotusClient.RetrieveData(mp.MinerId, cid, savePath); err != nil {
+				model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING_FAILED)
 				continue
 			}
-			model.UpdateMinerDealStatus(cid, model.SUCCESS_RETRIEVE_STATUS)
 
-			// 4. upload file to ipfs  ERROR_UPLOAD_FAIL
-			model.UpdateMinerDealStatus(cid, model.START_IPFS_STATUS)
-
+			// 4. upload file to ipfs
+			model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING)
 			stat, err := os.Stat(savePath)
 			if err != nil {
 				log.Errorf("not found savepath: %s,error: %s", savePath, err)
@@ -279,7 +235,7 @@ func GetCid(c *gin.Context) {
 
 			objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
 			if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
-
+				model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
 				return
 			}
 
@@ -287,32 +243,34 @@ func GetCid(c *gin.Context) {
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
 				for _, u := range urls {
-					split := strings.Split(u, "/")
 					fileIpfs = append(fileIpfs, model.FileIpfs{
-						DataCid:  cid,
-						IpfsUrl:  u,
-						IpfsHash: split[len(split)-1],
+						DataCid: cid,
+						IpfsUrl: u,
 					})
 				}
 			} else {
-				hashs, urls := UploaderFile(savePath, model.UploaderSetting.IpfsUrls)
-				for index, u := range urls {
+				_, urls := UploaderFile(savePath, model.UploaderSetting.IpfsUrls)
+				for _, u := range urls {
 					fileIpfs = append(fileIpfs, model.FileIpfs{
-						DataCid:  cid,
-						IpfsUrl:  u,
-						IpfsHash: hashs[index],
+						DataCid: cid,
+						IpfsUrl: u,
 					})
 				}
 			}
 			if len(fileIpfs) > 0 {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
-					model.UpdateMinerDealStatus(cid, model.SUCCESS_IPFS_STATUS)
+					model.UpdateSourceFileStatus(cid, model.REBUILD_SUCCESS)
+					successFlag = true
 					err := os.RemoveAll(savePath)
 					if err != nil {
 						log.Errorf("remove file failed savepath: %s,error: %v", savePath, err)
 					}
 				}
 			}
+			break
+		}
+		if successFlag {
+			model.UpdateSourceFileStatus(cid, model.REBUILD_SUCCESS_FAILED)
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
@@ -320,13 +278,13 @@ func GetCid(c *gin.Context) {
 	})
 }
 
-// @Summary Upload file
-// @Accept  json
-// @Param   data	body	service.RebuildStatusReq  true	"request parameters"
+// @Summary upload file
+// @Description
+// @Accept multipart/form-data
+// @Param file formData file true "file"
 // @Produce  json
 // @Success 200 {object} internal.Response
-// @Failure 500 {object} internal.Response
-// @Router /rebuild/status [post]
+// @Router /upload [post]
 func UploadFile(c *gin.Context) {
 	appG := internal.Gin{C: c}
 	file, err := c.FormFile("file")
@@ -345,218 +303,6 @@ func UploadFile(c *gin.Context) {
 	// 上传完更新数据库；
 
 	appG.Response(http.StatusOK, internal.SUCCESS, "Uploaded successfully!")
-}
-
-func AutoUploadFileToIpfs() {
-	ticker := time.NewTicker(5 * time.Minute)
-	for {
-		select {
-		case <-ticker.C:
-			payloadCids, err := model.FindIpfsCopysLow()
-			if err != nil {
-				return
-			}
-			for _, sid := range payloadCids {
-				cid := sid
-				model.UpdateMinerDealStatus(cid, model.START_PEER_STATUS)
-				peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, cid)
-
-				peerIds := make(map[string]string, 0)
-				for _, data := range peerData {
-					if string(data) == "no results for query" {
-						continue
-					}
-					var indexData IndexData
-					if err = json.Unmarshal(data, &indexData); err != nil {
-						model.UpdateMinerDealStatus(cid, model.FAILED_PEER_STATUS)
-						continue
-					}
-					if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
-						peerId := indexData.MultihashResults[0].ProviderResults[0].Provider.ID
-						peerIds[peerId] = peerId
-					}
-				}
-				if len(peerIds) == 0 {
-					model.UpdateMinerDealStatus(cid, model.FAILED_PEER_STATUS)
-					model.InsertFailedSource(model.FailedSource{
-						PayloadCid: cid,
-					})
-					model.UpdateSourceFileStatusByUploadId(cid, 0, "", "failed")
-					continue
-				} else {
-					model.UpdateMinerDealStatus(cid, model.SUCCESS_PEER_STATUS)
-					model.DeleteFailedSource(model.FailedSource{
-						PayloadCid: cid,
-					})
-				}
-
-				go func() {
-					defer func() {
-						if err := recover(); err != nil {
-							fmt.Printf("catch panic error message: %v \n", err)
-						}
-					}()
-
-					lotusClient := common.NewLotusClient()
-					for _, peerId := range peerIds {
-						log.Infof("start process peerId: %s", peerId)
-						// 2. query minerId by lotus
-						model.UpdateMinerDealStatus(cid, model.START_MINER_STATUS)
-
-						minerId, err := lotusClient.GetMinerIdByPeerId(peerId)
-						if err != nil {
-							log.Warnf("get minerpeer failed,peerId:%s,error: %v,continue check next peerId", peerId, err)
-							model.UpdateMinerDealStatus(cid, model.FAILED_MINER_STATUS)
-							continue
-						}
-						model.UpdateMinerDealStatus(cid, model.SUCCESS_MINER_STATUS)
-
-						savePath := filepath.Join(model.LotusSetting.DownloadDir, minerId+"-"+cid)
-						// 3. retrieveData
-						model.UpdateMinerDealStatus(cid, model.START_RETRIEVE_STATUS)
-						if err := lotusClient.RetrieveData(minerId, cid, savePath); err != nil {
-							model.UpdateMinerDealStatus(cid, model.FAILED_RETRIEVE_STATUS)
-							continue
-						}
-						model.UpdateMinerDealStatus(cid, model.SUCCESS_RETRIEVE_STATUS)
-
-						// 4. upload file to ipfs
-						model.UpdateMinerDealStatus(cid, model.START_IPFS_STATUS)
-
-						stat, err := os.Stat(savePath)
-						if err != nil {
-							log.Errorf("not found savepath: %s,error: %s", savePath, err)
-							return
-						}
-
-						fileIpfs := make([]model.FileIpfs, 0)
-						if stat.IsDir() {
-							urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
-							for _, u := range urls {
-								split := strings.Split(u, "/")
-								fileIpfs = append(fileIpfs, model.FileIpfs{
-									DataCid:  cid,
-									IpfsUrl:  u,
-									IpfsHash: split[len(split)-1],
-								})
-							}
-						} else {
-							hashs, urls := UploaderFile(savePath, model.UploaderSetting.IpfsUrls)
-							for index, u := range urls {
-								fileIpfs = append(fileIpfs, model.FileIpfs{
-									DataCid:  cid,
-									IpfsUrl:  u,
-									IpfsHash: hashs[index],
-								})
-							}
-						}
-						if len(fileIpfs) > 0 {
-							if err = model.InsertFileIpfs(fileIpfs); err == nil {
-								model.UpdateMinerDealStatus(cid, model.SUCCESS_IPFS_STATUS)
-								err := os.RemoveAll(savePath)
-								if err != nil {
-									log.Errorf("remove file failed savepath: %s,error: %v", savePath, err)
-									model.UpdateMinerDealStatus(cid, model.FAILED_IPFS_STATUS)
-								}
-							}
-						}
-
-					}
-				}()
-			}
-		}
-	}
-}
-
-func AutoSourceFileStatusAndMinerDealInfo() {
-	ticker := time.NewTicker(1 * time.Minute)
-	for {
-		select {
-		case <-ticker.C:
-			sourceFiles, err := model.FindSourceFileByStatus()
-			if err != nil {
-				return
-			}
-			for _, sf := range sourceFiles {
-				mcsStatus, err := common.GetMcsStatus(sf.FileName, sf.Address)
-				if err != nil {
-					log.Errorf("get mcs status failed,error: %v", err)
-					continue
-				}
-				if mcsStatus.Status == "success" {
-					for _, mcs := range mcsStatus.Data.SourceFileUpload {
-						if mcs.SourceFileUploadId == sf.UploadId {
-							if mcs.DealSuccess {
-								model.UpdateSourceFileStatusByUploadId(sf.PayloadCid, mcs.SourceFileUploadId, "Success", "")
-								model.DeleteFailedSource(model.FailedSource{
-									PayloadCid: sf.PayloadCid,
-								})
-							} else {
-								model.UpdateSourceFileStatusByUploadId(sf.PayloadCid, mcs.SourceFileUploadId, mcs.Status, "")
-							}
-							minerDeals := make([]model.MinerDeal, 0)
-							for _, deal := range mcs.OfflineDeal {
-								var md model.MinerDeal
-								md.DealCid = deal.DealCid
-								md.DealId = int64(deal.DealId)
-								md.MinerId = deal.MinerFid
-								md.Status = deal.OnChainStatus
-								md.PayloadCid = sf.PayloadCid
-								minerDeals = append(minerDeals, md)
-							}
-							if len(minerDeals) > 0 {
-								model.SaveOrUpdateMinerDeal(minerDeals)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-func WatchFilecoinNodeData() {
-	ticker := time.NewTicker(1 * time.Minute)
-	for {
-		select {
-		case <-ticker.C:
-			sourceFiles, err := model.FindSourceFile()
-			if err != nil {
-				return
-			}
-			for _, sourceFile := range sourceFiles {
-				sourceFileCp := sourceFile
-				peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, sourceFileCp.PayloadCid)
-
-				peerIds := make(map[string]string, 0)
-				for _, data := range peerData {
-					if string(data) == "no results for query" {
-						continue
-					}
-					var indexData IndexData
-					if err = json.Unmarshal(data, &indexData); err != nil {
-						continue
-					}
-					if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
-						peerId := indexData.MultihashResults[0].ProviderResults[0].Provider.ID
-						peerIds[peerId] = peerId
-					}
-				}
-
-				updateMinerIds := make([]string, 0)
-				lotusClient := common.NewLotusClient()
-				for _, peerId := range peerIds {
-					minerId, err := lotusClient.GetMinerIdByPeerId(peerId)
-					if err != nil {
-						log.Warnf("get minerpeer failed,peerId:%s,error: %v,continue check next peerId", peerId, err)
-						continue
-					}
-					updateMinerIds = append(updateMinerIds, minerId)
-				}
-				model.DeleteMinerDeal(sourceFileCp.PayloadCid, updateMinerIds)
-			}
-		}
-	}
 }
 
 func WatchIpfsNodeData() {
@@ -596,10 +342,9 @@ type FileSourceResp struct {
 	FileSize         int64          `json:"file_size"`
 	IpfsUrls         []string       `json:"ipfs_urls"`
 	Providers        []ProviderInfo `json:"providers"`
+	RebuildStatus    bool           `json:"rebuild_status"`
 	HotBackups       int            `json:"hot_backups"`
-	McsStatus        string         `json:"mcs_status"`
 	ColdBackups      int            `json:"cold_backups"`
-	UploadId         int            `json:"upload_id"`
 	NotFoundProvider string         `json:"not_found_provider"`
 }
 
