@@ -13,14 +13,15 @@ func InitRouter() *gin.Engine {
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 	r.Use(CORSMiddleware())
-
+	r.MaxMultipartMemory = 10 << 20
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	apiv1 := r.Group("/api/v1")
 	{
 		apiv1.GET("/files", service.GetSourceList)
 		apiv1.GET("/cid/:cid", service.GetCid)
 		apiv1.GET("/summary", service.Summary)
-		apiv1.POST("/rebuild/status", service.RebuildStatus)
+		//apiv1.POST("/rebuild/status", service.RebuildStatus)
+		apiv1.POST("/upload", service.UploadFile)
 	}
 	return r
 }

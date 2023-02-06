@@ -57,6 +57,6 @@ func (a APIInfo) AuthHeader() http.Header {
 		headers.Add("Authorization", "Bearer "+string(a.Token))
 		return headers
 	}
-	log.Warn("API Token not set and requested, capabilities might be limited.")
+	//log.Warn("API Token not set and requested, capabilities might be limited.")
 	return nil
 }

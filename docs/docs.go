@@ -104,42 +104,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/rebuild/status": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Update the status of the rebuilder task",
-                "parameters": [
-                    {
-                        "description": "request parameters",
-                        "name": "data",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.RebuildStatusReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/internal.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/summary": {
             "get": {
                 "produces": [
@@ -167,6 +131,34 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/upload": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "upload file",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/internal.Response"
                         }
@@ -229,9 +221,6 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "mcs_status": {
-                    "type": "string"
-                },
                 "not_found_provider": {
                     "type": "string"
                 },
@@ -241,8 +230,11 @@ const docTemplate = `{
                         "$ref": "#/definitions/service.ProviderInfo"
                     }
                 },
-                "upload_id": {
-                    "type": "integer"
+                "rebuild_status": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -254,26 +246,6 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
-                }
-            }
-        },
-        "service.RebuildStatusReq": {
-            "type": "object",
-            "properties": {
-                "data_cid": {
-                    "type": "string"
-                },
-                "file_size": {
-                    "type": "integer"
-                },
-                "ipfs_url": {
-                    "type": "string"
-                },
-                "payload_cid": {
-                    "type": "string"
-                },
-                "source_file_upload_id": {
-                    "type": "integer"
                 }
             }
         },
@@ -306,7 +278,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "api.storefrontiers.cn",
+	Host:             "http://rebuilder.fogmeta.com/",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "ReBuilder API",

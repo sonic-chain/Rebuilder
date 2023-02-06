@@ -7,7 +7,7 @@ HttpPort = 8000
 User = "root"
 Password = "rootadmin"
 Host = "127.0.0.1:3306"
-Name = "rebuilder"
+Name = "rebuilder_new"
 
 [indexer]
 Urls = ["https://cid.contact","https://index-finder.kencloud.com","https://index-finder-piknik.kencloud.com","https://index-finder-sxx.kencloud.com"]

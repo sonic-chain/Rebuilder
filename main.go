@@ -18,7 +18,7 @@ var log = logging.Logger("main")
 // @version 1.0
 // @contact.name   API Support
 // @contact.url    http://www.swagger.io/support
-// @host      api.storefrontiers.cn
+// @host      http://rebuilder.fogmeta.com/
 // @BasePath  /api/v1
 func main() {
 	lvl, err := logging.LevelFromString("info")
@@ -32,10 +32,7 @@ func main() {
 	routersInit := routers.InitRouter()
 	endPoint := fmt.Sprintf(":%d", model.ServerSetting.HttpPort)
 	maxHeaderBytes := 1 << 20
-	go service.AutoUploadFileToIpfs()
-	go service.AutoSourceFileStatusAndMinerDealInfo()
 	go service.WatchIpfsNodeData()
-	//go service.WatchFilecoinNodeData()
 	endless.DefaultMaxHeaderBytes = maxHeaderBytes
 	server := endless.NewServer(endPoint, routersInit)
 	server.BeforeBegin = func(add string) {
