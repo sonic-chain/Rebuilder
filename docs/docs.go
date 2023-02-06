@@ -232,6 +232,9 @@ const docTemplate = `{
                 },
                 "rebuild_status": {
                     "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },

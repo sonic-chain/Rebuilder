@@ -130,7 +130,7 @@ func GetSourceList(c *gin.Context) {
 		fsr.FileName = fileSource.FileName
 		fsr.DataCid = fileSource.DataCid
 		fsr.FileSize = fileSource.FileSize
-
+		fsr.Status = string(fileSource.RebuildStatus)
 		ipfsUrls := make([]string, 0)
 		for _, url := range fileSource.IpfsUrls {
 			ipfsUrls = append(ipfsUrls, url.IpfsUrl)
@@ -299,9 +299,6 @@ func UploadFile(c *gin.Context) {
 		appG.Response(http.StatusInternalServerError, internal.ERROR_UPLOAD_FAIL, internal.GetMsg(internal.ERROR_UPLOAD_FAIL))
 		return
 	}
-
-	// 上传完更新数据库；
-
 	appG.Response(http.StatusOK, internal.SUCCESS, "Uploaded successfully!")
 }
 
@@ -346,6 +343,7 @@ type FileSourceResp struct {
 	HotBackups       int            `json:"hot_backups"`
 	ColdBackups      int            `json:"cold_backups"`
 	NotFoundProvider string         `json:"not_found_provider"`
+	Status           string         `json:"status"`
 }
 
 type ProviderInfo struct {
@@ -365,25 +363,4 @@ type IndexData struct {
 			} `json:"Provider"`
 		} `json:"ProviderResults"`
 	} `json:"MultihashResults"`
-}
-
-type RebuildStatusReq struct {
-	SourceFileUploadId int    `json:"source_file_upload_id"`
-	PayloadCid         string `json:"payload_cid"`
-	IpfsUrl            string `json:"ipfs_url"`
-	FileSize           int    `json:"file_size"`
-	DataCid            string `json:"data_cid"`
-
-	//FileName           string `json:"file_name"`
-	//PinStatus          string `json:"pin_status"`
-	//Status             string `json:"status"`
-	//OfflineDeal        []Deal `json:"offline_deal"`
-}
-
-type Deal struct {
-	DealCid       string `json:"deal_cid"`
-	Status        string `json:"status"`
-	DealId        int64  `json:"deal_id"`
-	OnChainStatus string `json:"on_chain_status"`
-	MinerFid      string `json:"miner_fid"`
 }
