@@ -19,3 +19,8 @@ Address="f3xxxxxxxx"
 
 [uploader]
 IpfsUrls = ["https://upload.example.com;https://download.example.com","https://upload.example2.com;https://download.example2.com"]
+
+[mcs]
+ChainName = "polygon.mainnet"
+ApiKey = "xxx"
+AccessToken = "xxxx"
