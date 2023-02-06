@@ -108,6 +108,14 @@ func InsertFileIpfs(fileIpfs []FileIpfs) error {
 	return nil
 }
 
+func GetFileIpfs(fileIpfs FileIpfs) int64 {
+	var num int64
+	if err := db.Model(&FileIpfs{}).Where(&fileIpfs).Count(&num).Error; err != nil {
+		log.Errorf("insert FileIpfs data failed,error: %v", err)
+	}
+	return num
+}
+
 func InsertFileMiner(fileMiner *FileMiner) error {
 	if err := db.Model(&FileMiner{}).Save(fileMiner).Error; err != nil {
 		log.Errorf("insert FileMiner data failed,error: %v", err)

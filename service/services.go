@@ -318,9 +318,9 @@ func Retrieve(c *gin.Context) {
 	var sf model.SourceFile
 	sf.DataCid = retrieveReq.DataCid
 	sf.CreateAt = time.Now()
+	sf.RebuildStatus = model.REBUILD_INDEXING
 	model.InsertSourceFile(&sf)
 
-	model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_INDEXING)
 	peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, retrieveReq.DataCid)
 	peerIds := make(map[string]string, 0)
 	for _, data := range peerData {
@@ -391,10 +391,15 @@ func Retrieve(c *gin.Context) {
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
 				for _, u := range urls {
-					fileIpfs = append(fileIpfs, model.FileIpfs{
+					if model.GetFileIpfs(model.FileIpfs{
 						DataCid: retrieveReq.DataCid,
 						IpfsUrl: u,
-					})
+					}) == 0 {
+						fileIpfs = append(fileIpfs, model.FileIpfs{
+							DataCid: retrieveReq.DataCid,
+							IpfsUrl: u,
+						})
+					}
 				}
 			} else {
 				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
@@ -409,10 +414,16 @@ func Retrieve(c *gin.Context) {
 					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING_FAILED)
 					return
 				}
-				fileIpfs = append(fileIpfs, model.FileIpfs{
+
+				if model.GetFileIpfs(model.FileIpfs{
 					DataCid: retrieveReq.DataCid,
 					IpfsUrl: fileUrl,
-				})
+				}) == 0 {
+					fileIpfs = append(fileIpfs, model.FileIpfs{
+						DataCid: retrieveReq.DataCid,
+						IpfsUrl: fileUrl,
+					})
+				}
 			}
 			if len(fileIpfs) > 0 {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
