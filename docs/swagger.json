@@ -1,0 +1,284 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "ReBuilder API",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support"
+        },
+        "version": "1.0"
+    },
+    "host": "http://rebuilder.fogmeta.com/",
+    "basePath": "/api/v1",
+    "paths": {
+        "/cid/{cid}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Retrieve file storage from filecoin to ipfs based on cid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID",
+                        "name": "cid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get a list of file storage information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "data_cid/file_name",
+                        "name": "field_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number, starting from 0 by default",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "By default, there are 20 lines.",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/internal.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.FileSourcePager"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/retrieve": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "retrieve file",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/summary": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Summary information display",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/internal.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.SummaryResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/upload": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "upload file",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "internal.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {},
+                "msg": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.FileSourcePager": {
+            "type": "object",
+            "properties": {
+                "pageCount": {
+                    "type": "integer"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.FileSourceResp"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.FileSourceResp": {
+            "type": "object",
+            "properties": {
+                "cold_backups": {
+                    "type": "integer"
+                },
+                "data_cid": {
+                    "type": "string"
+                },
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "hot_backups": {
+                    "type": "integer"
+                },
+                "ipfs_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "not_found_provider": {
+                    "type": "string"
+                },
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.ProviderInfo"
+                    }
+                },
+                "rebuild_status": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.ProviderInfo": {
+            "type": "object",
+            "properties": {
+                "provider_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.SummaryResp": {
+            "type": "object",
+            "properties": {
+                "cids_count": {
+                    "type": "integer"
+                },
+                "data_stored": {
+                    "type": "integer"
+                },
+                "deals_count": {
+                    "type": "integer"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "ipfs_nodes": {
+                    "type": "integer"
+                },
+                "providers": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}
