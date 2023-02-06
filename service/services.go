@@ -233,12 +233,6 @@ func GetCid(c *gin.Context) {
 				return
 			}
 
-			objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
-			if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
-				model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
-				return
-			}
-
 			fileIpfs := make([]model.FileIpfs, 0)
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
@@ -249,13 +243,22 @@ func GetCid(c *gin.Context) {
 					})
 				}
 			} else {
-				_, urls := UploaderFile(savePath, model.UploaderSetting.IpfsUrls)
-				for _, u := range urls {
-					fileIpfs = append(fileIpfs, model.FileIpfs{
-						DataCid: cid,
-						IpfsUrl: u,
-					})
+				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
+				if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
+					log.Errorf("upload file to mcs bucket failed, error: %+v", err)
+					model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
+					return
 				}
+				fileUrl, err := mcs.GetFile(context.TODO(), "rebuilder", objectName)
+				if err != nil {
+					log.Errorf("get file from mcs bucket failed, error: %+v", err)
+					model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
+					return
+				}
+				fileIpfs = append(fileIpfs, model.FileIpfs{
+					DataCid: cid,
+					IpfsUrl: fileUrl,
+				})
 			}
 			if len(fileIpfs) > 0 {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {

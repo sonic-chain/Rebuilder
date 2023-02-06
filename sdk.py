@@ -1,4 +1,6 @@
+import os
 import sys
+import toml
 from mcs import APIClient, BucketAPI
 
 
@@ -43,9 +45,17 @@ def get_file(bucket_name, object_name):
 
 
 if __name__ == "__main__":
-    chain_name = "polygon.mainnet"
-    api_key = "xxx"
-    access_token = "xxx"
+    parsed_toml = toml.load(os.getcwd()+"/config.toml")
+    chain_name = ""
+    api_key = ""
+    access_token = ""
+    for key, value in parsed_toml.get('mcs').items():
+        if key == "ChainName":
+            chain_name = value
+        if key == "ApiKey":
+            api_key = value
+        if key == "AccessToken":
+            access_token = value
 
     args = len(sys.argv)
     if sys.argv[1] == "upload_file":
