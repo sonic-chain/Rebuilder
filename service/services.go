@@ -319,7 +319,7 @@ func Retrieve(c *gin.Context) {
 	sf.DataCid = retrieveReq.DataCid
 	sf.CreateAt = time.Now()
 	sf.RebuildStatus = model.REBUILD_INDEXING
-	model.InsertSourceFile(&sf)
+	model.CreateSourceFile(&sf)
 
 	peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, retrieveReq.DataCid)
 	peerIds := make(map[string]string, 0)
