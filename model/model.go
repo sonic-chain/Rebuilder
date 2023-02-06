@@ -15,8 +15,8 @@ const (
 	REBUILD_RETRIEVING_FAILED RebuildStatus = "Retrieving-failed"
 	REBUILD_UPLOADING         RebuildStatus = "Uploading"
 	REBUILD_UPLOADING_FAILED  RebuildStatus = "Uploading-failed"
-	REBUILD_SUCCESS           RebuildStatus = "Successful"
-	REBUILD_SUCCESS_FAILED    RebuildStatus = "Successful-failed"
+	REBUILD_SUCCESS           RebuildStatus = "Rebuild-Successful"
+	REBUILD_FAILED            RebuildStatus = "Rebuild-failed"
 
 	BUCKET_NAME string = "rebuilder"
 )
@@ -41,8 +41,9 @@ func InsertSourceFile(sf *SourceFile) {
 }
 
 type FileIpfs struct {
-	DataCid string `json:"data_cid" gorm:"primaryKey"`
-	IpfsUrl string `json:"ipfs_url" gorm:"primaryKey"`
+	gorm.Model
+	DataCid string `json:"data_cid"`
+	IpfsUrl string `json:"ipfs_url"`
 }
 
 func (FileIpfs) TableName() string {

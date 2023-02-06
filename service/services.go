@@ -262,16 +262,13 @@ func GetCid(c *gin.Context) {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
 					model.UpdateSourceFileStatus(cid, model.REBUILD_SUCCESS)
 					successFlag = true
-					err := os.RemoveAll(savePath)
-					if err != nil {
-						log.Errorf("remove file failed savepath: %s,error: %v", savePath, err)
-					}
+					os.RemoveAll(savePath)
 				}
 			}
 			break
 		}
 		if !successFlag {
-			model.UpdateSourceFileStatus(cid, model.REBUILD_SUCCESS_FAILED)
+			model.UpdateSourceFileStatus(cid, model.REBUILD_FAILED)
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
@@ -317,6 +314,112 @@ func Retrieve(c *gin.Context) {
 	if retrieveReq.DataCid == "" {
 		appG.Response(http.StatusBadRequest, internal.INVALID_PARAMS, internal.GetMsg(internal.INVALID_PARAMS))
 	}
+
+	model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_INDEXING)
+	peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, retrieveReq.DataCid)
+
+	peerIds := make(map[string]string, 0)
+	for _, data := range peerData {
+		if string(data) == "no results for query" {
+			continue
+		}
+		var indexData IndexData
+		if err := json.Unmarshal(data, &indexData); err != nil {
+			log.Errorf("change to json failed,error: %v", err)
+			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_INDEXING_FAILED)
+			continue
+		}
+		if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
+			peerId := indexData.MultihashResults[0].ProviderResults[0].Provider.ID
+			peerIds[peerId] = peerId
+		}
+	}
+	if len(peerIds) == 0 {
+		model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_INDEXING_FAILED)
+		appG.Response(http.StatusInternalServerError, internal.ERROR_RETRIEVE_FAIL, nil)
+		return
+	} else {
+		model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_RETRIEVING)
+	}
+
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("catch panic error message: %v \n", err)
+			}
+		}()
+
+		var successFlag bool
+		lotusClient := common.NewLotusClient()
+		for _, peerId := range peerIds {
+			log.Infof("start process peerId: %s", peerId)
+			// 2. query minerId
+			mp, err := model.FindMinerPeer(peerId)
+			if err != nil {
+				log.Warnf("get minerpeer failed,peerId:%s,error: %v,continue check next peerId", peerId, err)
+				continue
+			}
+
+			fileName := mp.MinerId + "-" + retrieveReq.DataCid
+			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
+			// 3. retrieveData
+			if err := lotusClient.RetrieveData(mp.MinerId, retrieveReq.DataCid, savePath); err != nil {
+				model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_RETRIEVING_FAILED)
+				continue
+			}
+
+			// 4. upload file to ipfs
+			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING)
+			stat, err := os.Stat(savePath)
+			if err != nil {
+				log.Errorf("not found savepath: %s,error: %s", savePath, err)
+				return
+			}
+
+			fileIpfs := make([]model.FileIpfs, 0)
+			if stat.IsDir() {
+				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
+				for _, u := range urls {
+					fileIpfs = append(fileIpfs, model.FileIpfs{
+						DataCid: retrieveReq.DataCid,
+						IpfsUrl: u,
+					})
+				}
+			} else {
+				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
+				if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
+					log.Errorf("upload file to mcs bucket failed, error: %+v", err)
+					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING_FAILED)
+					return
+				}
+				fileUrl, err := mcs.GetFile(context.TODO(), "rebuilder", objectName)
+				if err != nil {
+					log.Errorf("get file from mcs bucket failed, error: %+v", err)
+					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING_FAILED)
+					return
+				}
+				fileIpfs = append(fileIpfs, model.FileIpfs{
+					DataCid: retrieveReq.DataCid,
+					IpfsUrl: fileUrl,
+				})
+			}
+			if len(fileIpfs) > 0 {
+				if err = model.InsertFileIpfs(fileIpfs); err == nil {
+					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_SUCCESS)
+					successFlag = true
+					os.RemoveAll(savePath)
+				}
+			}
+			break
+		}
+		if !successFlag {
+			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_FAILED)
+		}
+	}()
+	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
+		"msg": "Submitted for processing",
+	})
+
 	appG.Response(http.StatusOK, internal.SUCCESS, "Retrieving successfully!")
 }
 
