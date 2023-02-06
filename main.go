@@ -18,7 +18,7 @@ var log = logging.Logger("main")
 // @version 1.0
 // @contact.name   API Support
 // @contact.url    http://www.swagger.io/support
-// @host      127.0.0.1:8000
+// @host      http://rebuilder.fogmeta.com/
 // @BasePath  /api/v1
 func main() {
 	lvl, err := logging.LevelFromString("info")
