@@ -37,7 +37,7 @@ func (SourceFile) TableName() string {
 }
 
 func InsertSourceFile(sf *SourceFile) {
-	db.Model(&SourceFile{}).Save([]*SourceFile{sf})
+	db.Model(&SourceFile{}).Save(sf)
 }
 
 type FileIpfs struct {
@@ -76,9 +76,9 @@ func FileSourceList(fieldName string, page int64, size int64) ([]SourceFile, err
 	var err error
 	if fieldName != "" {
 		err = db.Model(&SourceFile{}).Where("data_cid LIKE ?", "%"+fieldName+"%").Or("file_name LIKE ?", "%"+fieldName+"%").
-			Order("create_at").Preload("IpfsUrls").Preload("MinerIds").Limit(int(size)).Offset(int(page * size)).Find(&fileList).Error
+			Order("create_at desc").Preload("IpfsUrls").Preload("MinerIds").Limit(int(size)).Offset(int(page * size)).Find(&fileList).Error
 	} else {
-		err = db.Model(&SourceFile{}).Order("create_at").Preload("IpfsUrls").Preload("MinerIds").Limit(int(size)).Offset(int(page * size)).Find(&fileList).Error
+		err = db.Model(&SourceFile{}).Order("create_at desc").Preload("IpfsUrls").Preload("MinerIds").Limit(int(size)).Offset(int(page * size)).Find(&fileList).Error
 	}
 	return fileList, err
 }
@@ -103,6 +103,14 @@ func CountFileSourceList(fieldName string, size int64) (int64, int64, error) {
 func InsertFileIpfs(fileIpfs []FileIpfs) error {
 	if err := db.Model(&FileIpfs{}).Save(fileIpfs).Error; err != nil {
 		log.Errorf("insert FileIpfs data failed,error: %v", err)
+		return err
+	}
+	return nil
+}
+
+func InsertFileMiner(fileMiner *FileMiner) error {
+	if err := db.Model(&FileMiner{}).Save(fileMiner).Error; err != nil {
+		log.Errorf("insert FileMiner data failed,error: %v", err)
 		return err
 	}
 	return nil
