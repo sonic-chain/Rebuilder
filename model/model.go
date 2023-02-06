@@ -41,7 +41,6 @@ func InsertSourceFile(sf *SourceFile) {
 }
 
 type FileIpfs struct {
-	gorm.Model
 	DataCid string `json:"data_cid"`
 	IpfsUrl string `json:"ipfs_url"`
 }
@@ -106,6 +105,14 @@ func InsertFileIpfs(fileIpfs []FileIpfs) error {
 		return err
 	}
 	return nil
+}
+
+func GetFileIpfs(fileIpfs FileIpfs) int64 {
+	var num int64
+	if err := db.Model(&FileIpfs{}).Where(&fileIpfs).Count(&num).Error; err != nil {
+		log.Errorf("insert FileIpfs data failed,error: %v", err)
+	}
+	return num
 }
 
 func InsertFileMiner(fileMiner *FileMiner) error {
