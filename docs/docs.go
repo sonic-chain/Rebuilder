@@ -104,6 +104,22 @@ const docTemplate = `{
                 }
             }
         },
+        "/retrieve": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "retrieve file",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/summary": {
             "get": {
                 "produces": [

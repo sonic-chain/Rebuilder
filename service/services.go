@@ -302,6 +302,23 @@ func UploadFile(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, "Uploaded successfully!")
 }
 
+// @Summary retrieve file
+// @Description
+// @accept application/json
+// @Success 200 {object} internal.Response
+// @Router /retrieve [post]
+func Retrieve(c *gin.Context) {
+	appG := internal.Gin{C: c}
+	var retrieveReq RetrieveReq
+	if err := c.ShouldBindJSON(&retrieveReq); err != nil {
+		appG.Response(http.StatusInternalServerError, internal.ERROR_CHANGETO_JSON, nil)
+	}
+	if retrieveReq.DataCid == "" {
+		appG.Response(http.StatusBadRequest, internal.INVALID_PARAMS, internal.GetMsg(internal.INVALID_PARAMS))
+	}
+	appG.Response(http.StatusOK, internal.SUCCESS, "Retrieving successfully!")
+}
+
 func WatchIpfsNodeData() {
 	ticker := time.NewTicker(8 * time.Minute)
 	for {
@@ -363,4 +380,10 @@ type IndexData struct {
 			} `json:"Provider"`
 		} `json:"ProviderResults"`
 	} `json:"MultihashResults"`
+}
+
+type RetrieveReq struct {
+	DataCid string  `json:"data_cid"`
+	CopyNum int     `json:"copy_num"`
+	Cost    float64 `json:"cost"`
 }
