@@ -36,6 +36,10 @@ func (SourceFile) TableName() string {
 	return "t_source_file"
 }
 
+func CreateSourceFile(sf *SourceFile) {
+	db.Model(&SourceFile{}).Create(sf)
+}
+
 func InsertSourceFile(sf *SourceFile) {
 	db.Model(&SourceFile{}).Save(sf)
 }
