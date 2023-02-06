@@ -112,9 +112,9 @@ func InsertFileIpfs(fileIpfs []FileIpfs) error {
 	return nil
 }
 
-func GetFileIpfs(fileIpfs FileIpfs) int64 {
+func GetFileIpfs(ipfsUrl, dataCid string) int64 {
 	var num int64
-	if err := db.Model(&FileIpfs{}).Where(&fileIpfs).Count(&num).Error; err != nil {
+	if err := db.Model(&FileIpfs{}).Where("data_cid=? and ipfs_url=?", dataCid, ipfsUrl).Count(&num).Error; err != nil {
 		log.Errorf("insert FileIpfs data failed,error: %v", err)
 	}
 	return num
@@ -126,6 +126,14 @@ func InsertFileMiner(fileMiner *FileMiner) error {
 		return err
 	}
 	return nil
+}
+
+func GetFileMiner(minerId, dataCid string) int64 {
+	var num int64
+	if err := db.Model(&FileMiner{}).Where("miner_id=? and data_cid=?", minerId, dataCid).Find(&num).Error; err != nil {
+		log.Errorf("insert FileMiner data failed,error: %v", err)
+	}
+	return num
 }
 
 type Miner struct {

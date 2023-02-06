@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/unknwon/com"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -366,11 +367,13 @@ func Retrieve(c *gin.Context) {
 				continue
 			}
 
-			var fm model.FileMiner
-			fm.DataCid = retrieveReq.DataCid
-			fm.MinerId = mp.MinerId
-			fm.Status = "StorageDealActive"
-			model.InsertFileMiner(&fm)
+			if model.GetFileMiner(mp.MinerId, retrieveReq.DataCid) == 0 {
+				var fm model.FileMiner
+				fm.DataCid = retrieveReq.DataCid
+				fm.MinerId = mp.MinerId
+				fm.Status = "StorageDealActive"
+				model.InsertFileMiner(&fm)
+			}
 
 			fileName := mp.MinerId + "-" + retrieveReq.DataCid
 			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
@@ -393,10 +396,7 @@ func Retrieve(c *gin.Context) {
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
 				for _, u := range urls {
-					if model.GetFileIpfs(model.FileIpfs{
-						DataCid: retrieveReq.DataCid,
-						IpfsUrl: u,
-					}) == 0 {
+					if model.GetFileIpfs(u, retrieveReq.DataCid) == 0 {
 						fileIpfs = append(fileIpfs, model.FileIpfs{
 							DataCid: retrieveReq.DataCid,
 							IpfsUrl: u,
@@ -417,10 +417,7 @@ func Retrieve(c *gin.Context) {
 					return
 				}
 
-				if model.GetFileIpfs(model.FileIpfs{
-					DataCid: retrieveReq.DataCid,
-					IpfsUrl: fileUrl,
-				}) == 0 {
+				if model.GetFileIpfs(fileUrl, retrieveReq.DataCid) == 0 {
 					fileIpfs = append(fileIpfs, model.FileIpfs{
 						DataCid: retrieveReq.DataCid,
 						IpfsUrl: fileUrl,
@@ -432,8 +429,13 @@ func Retrieve(c *gin.Context) {
 					successFlag = true
 					var sf model.SourceFile
 					sf.DataCid = retrieveReq.DataCid
-					sf.FileSize = stat.Size()
-					sf.FileName = retrieveReq.DataCid
+
+					filepath.WalkDir(savePath, func(path string, d fs.DirEntry, err error) error {
+						info, err := os.Stat(path)
+						sf.FileSize = info.Size()
+						sf.FileName = info.Name()
+						return nil
+					})
 					sf.RebuildStatus = model.REBUILD_SUCCESS
 					model.InsertSourceFile(&sf)
 					os.RemoveAll(savePath)
