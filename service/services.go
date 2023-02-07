@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/unknwon/com"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -170,7 +171,11 @@ func GetCid(c *gin.Context) {
 	appG := internal.Gin{C: c}
 	cid := com.StrTo(c.Param("cid")).String()
 	//  1. query peerId by indexer node
-	model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING)
+	var sf model.SourceFile
+	sf.DataCid = cid
+	sf.CreateAt = time.Now()
+	sf.RebuildStatus = model.REBUILD_INDEXING
+	model.CreateSourceFile(&sf)
 
 	go func() {
 		defer func() {
@@ -206,6 +211,7 @@ func GetCid(c *gin.Context) {
 		}
 
 		var successFlag bool
+		var stat os.FileInfo
 		lotusClient := common.NewLotusClient()
 		for _, peerId := range peerIds {
 			log.Infof("start process peerId: %s", peerId)
@@ -216,10 +222,19 @@ func GetCid(c *gin.Context) {
 				continue
 			}
 
+			if model.GetFileMiner(mp.MinerId, cid) == 0 {
+				var fm model.FileMiner
+				fm.DataCid = cid
+				fm.MinerId = mp.MinerId
+				fm.Status = "StorageDealActive"
+				model.InsertFileMiner(&fm)
+			}
+
 			fileName := mp.MinerId + "-" + cid
 			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
 			// 3. retrieveData
 			if err := lotusClient.RetrieveData(mp.MinerId, cid, savePath); err != nil {
+				log.Errorf("lotus retrieveData failed, minerId: %s, dataCid: %s, error: %+v", mp.MinerId, cid, err)
 				model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING_FAILED)
 				continue
 			}
@@ -236,10 +251,12 @@ func GetCid(c *gin.Context) {
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
 				for _, u := range urls {
-					fileIpfs = append(fileIpfs, model.FileIpfs{
-						DataCid: cid,
-						IpfsUrl: u,
-					})
+					if model.GetFileIpfs(u, cid) == 0 {
+						fileIpfs = append(fileIpfs, model.FileIpfs{
+							DataCid: cid,
+							IpfsUrl: u,
+						})
+					}
 				}
 			} else {
 				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
@@ -254,22 +271,39 @@ func GetCid(c *gin.Context) {
 					model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
 					return
 				}
-				fileIpfs = append(fileIpfs, model.FileIpfs{
-					DataCid: cid,
-					IpfsUrl: fileUrl,
-				})
+				if model.GetFileIpfs(fileUrl, cid) == 0 {
+					fileIpfs = append(fileIpfs, model.FileIpfs{
+						DataCid: cid,
+						IpfsUrl: fileUrl,
+					})
+				}
 			}
 			if len(fileIpfs) > 0 {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
-					model.UpdateSourceFileStatus(cid, model.REBUILD_SUCCESS)
 					successFlag = true
+					var sf model.SourceFile
+					sf.DataCid = cid
+
+					filepath.WalkDir(savePath, func(path string, d fs.DirEntry, err error) error {
+						info, err := os.Stat(path)
+						sf.FileSize = info.Size()
+						sf.FileName = info.Name()
+						return nil
+					})
+					sf.RebuildStatus = model.REBUILD_SUCCESS
+					model.UpdateSourceFile(&sf)
 					os.RemoveAll(savePath)
 				}
 			}
 			break
 		}
 		if !successFlag {
-			model.UpdateSourceFileStatus(cid, model.REBUILD_FAILED)
+			var sf model.SourceFile
+			sf.DataCid = cid
+			sf.FileSize = stat.Size()
+			sf.FileName = cid
+			sf.RebuildStatus = model.REBUILD_FAILED
+			model.UpdateSourceFile(&sf)
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
@@ -366,16 +400,19 @@ func Retrieve(c *gin.Context) {
 				continue
 			}
 
-			var fm model.FileMiner
-			fm.DataCid = retrieveReq.DataCid
-			fm.MinerId = mp.MinerId
-			fm.Status = "StorageDealActive"
-			model.InsertFileMiner(&fm)
+			if model.GetFileMiner(mp.MinerId, retrieveReq.DataCid) == 0 {
+				var fm model.FileMiner
+				fm.DataCid = retrieveReq.DataCid
+				fm.MinerId = mp.MinerId
+				fm.Status = "StorageDealActive"
+				model.InsertFileMiner(&fm)
+			}
 
 			fileName := mp.MinerId + "-" + retrieveReq.DataCid
 			savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
 			// 3. retrieveData
 			if err := lotusClient.RetrieveData(mp.MinerId, retrieveReq.DataCid, savePath); err != nil {
+				log.Errorf("lotus retrieveData failed, minerId: %s, dataCid: %s, error: %+v", mp.MinerId, retrieveReq.DataCid, err)
 				model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_RETRIEVING_FAILED)
 				continue
 			}
@@ -384,7 +421,7 @@ func Retrieve(c *gin.Context) {
 			model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING)
 			stat, err = os.Stat(savePath)
 			if err != nil {
-				log.Errorf("not found savepath: %s,error: %s", savePath, err)
+				log.Errorf("not found savepath: %s,error: %+v", savePath, err)
 				return
 			}
 
@@ -392,10 +429,7 @@ func Retrieve(c *gin.Context) {
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
 				for _, u := range urls {
-					if model.GetFileIpfs(model.FileIpfs{
-						DataCid: retrieveReq.DataCid,
-						IpfsUrl: u,
-					}) == 0 {
+					if model.GetFileIpfs(u, retrieveReq.DataCid) == 0 {
 						fileIpfs = append(fileIpfs, model.FileIpfs{
 							DataCid: retrieveReq.DataCid,
 							IpfsUrl: u,
@@ -404,22 +438,19 @@ func Retrieve(c *gin.Context) {
 				}
 			} else {
 				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
-				if _, err = mcs.UploadFile(context.TODO(), "rebuilder", objectName, savePath); err != nil {
+				if _, err = mcs.UploadFile(context.TODO(), model.BUCKET_NAME, objectName, savePath); err != nil {
 					log.Errorf("upload file to mcs bucket failed, error: %+v", err)
 					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING_FAILED)
 					return
 				}
-				fileUrl, err := mcs.GetFile(context.TODO(), "rebuilder", objectName)
+				fileUrl, err := mcs.GetFile(context.TODO(), model.BUCKET_NAME, objectName)
 				if err != nil {
 					log.Errorf("get file from mcs bucket failed, error: %+v", err)
 					model.UpdateSourceFileStatus(retrieveReq.DataCid, model.REBUILD_UPLOADING_FAILED)
 					return
 				}
 
-				if model.GetFileIpfs(model.FileIpfs{
-					DataCid: retrieveReq.DataCid,
-					IpfsUrl: fileUrl,
-				}) == 0 {
+				if model.GetFileIpfs(fileUrl, retrieveReq.DataCid) == 0 {
 					fileIpfs = append(fileIpfs, model.FileIpfs{
 						DataCid: retrieveReq.DataCid,
 						IpfsUrl: fileUrl,
@@ -431,10 +462,15 @@ func Retrieve(c *gin.Context) {
 					successFlag = true
 					var sf model.SourceFile
 					sf.DataCid = retrieveReq.DataCid
-					sf.FileSize = stat.Size()
-					sf.FileName = retrieveReq.DataCid
+
+					filepath.WalkDir(savePath, func(path string, d fs.DirEntry, err error) error {
+						info, err := os.Stat(path)
+						sf.FileSize = info.Size()
+						sf.FileName = info.Name()
+						return nil
+					})
 					sf.RebuildStatus = model.REBUILD_SUCCESS
-					model.InsertSourceFile(&sf)
+					model.UpdateSourceFile(&sf)
 					os.RemoveAll(savePath)
 				}
 			}
@@ -446,7 +482,7 @@ func Retrieve(c *gin.Context) {
 			sf.FileSize = stat.Size()
 			sf.FileName = retrieveReq.DataCid
 			sf.RebuildStatus = model.REBUILD_FAILED
-			model.InsertSourceFile(&sf)
+			model.UpdateSourceFile(&sf)
 		}
 	}()
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
