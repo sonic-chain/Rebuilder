@@ -204,7 +204,6 @@ func GetCid(c *gin.Context) {
 		}
 		if len(peerIds) == 0 {
 			model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
-			appG.Response(http.StatusInternalServerError, internal.ERROR_RETRIEVE_FAIL, nil)
 			return
 		} else {
 			model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING)
