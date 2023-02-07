@@ -171,11 +171,7 @@ func GetCid(c *gin.Context) {
 	appG := internal.Gin{C: c}
 	cid := com.StrTo(c.Param("cid")).String()
 	//  1. query peerId by indexer node
-	var sf model.SourceFile
-	sf.DataCid = cid
-	sf.CreateAt = time.Now()
-	sf.RebuildStatus = model.REBUILD_INDEXING
-	model.CreateSourceFile(&sf)
+	model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING)
 
 	go func() {
 		defer func() {
