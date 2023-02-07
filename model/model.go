@@ -130,7 +130,7 @@ func InsertFileMiner(fileMiner *FileMiner) error {
 
 func GetFileMiner(minerId, dataCid string) int64 {
 	var num int64
-	if err := db.Model(&FileMiner{}).Where("miner_id=? and data_cid=?", minerId, dataCid).Find(&num).Error; err != nil {
+	if err := db.Model(&FileMiner{}).Where("miner_id=? and data_cid=?", minerId, dataCid).Count(&num).Error; err != nil {
 		log.Errorf("insert FileMiner data failed,error: %v", err)
 	}
 	return num
