@@ -19,23 +19,24 @@ module.exports = async ({ deployments }) => {
     await simpleCoin.deployed()
     console.log('SimpleCoin deployed to:', simpleCoin.address);
 
-    //deploy FilecoinMarketConsumer
-    const FilecoinMarketConsumer = await ethers.getContractFactory('FilecoinMarketConsumer', wallet);
-    console.log('Deploying FilecoinMarketConsumer...');
-    const filecoinMarketConsumer = await FilecoinMarketConsumer.deploy();
-    await filecoinMarketConsumer.deployed()
-    console.log('FilecoinMarketConsumer deployed to:', filecoinMarketConsumer.address);
-
-    //deploy DealRewarder
-    const DealRewarder = await ethers.getContractFactory('DealRewarder', wallet);
-    console.log('Deploying DealRewarder...');
-    const dealRewarder = await DealRewarder.deploy();
-    await dealRewarder.deployed()
-    console.log('DealRewarder deployed to:', dealRewarder.address);
+    //
+    // //deploy FilecoinMarketConsumer
+    // const FilecoinMarketConsumer = await ethers.getContractFactory('FilecoinMarketConsumer', wallet);
+    // console.log('Deploying FilecoinMarketConsumer...');
+    // const filecoinMarketConsumer = await FilecoinMarketConsumer.deploy();
+    // await filecoinMarketConsumer.deployed()
+    // console.log('FilecoinMarketConsumer deployed to:', filecoinMarketConsumer.address);
+    //
+    // //deploy DealRewarder
+    // const DealRewarder = await ethers.getContractFactory('DealRewarder', wallet);
+    // console.log('Deploying DealRewarder...');
+    // const dealRewarder = await DealRewarder.deploy();
+    // await dealRewarder.deployed()
+    // console.log('DealRewarder deployed to:', dealRewarder.address);
 
     //deploy FogmetaRebuilder
     const FogmetaRebuilder = await ethers.getContractFactory('FogmetaRebuilder', wallet);
-    console.log('Deploying DealRewarder...');
+    console.log('Deploying FogmetaRebuilder...');
     const fogmetaRebuilder = await FogmetaRebuilder.deploy();
     await fogmetaRebuilder.deployed()
     console.log('FogmetaRebuilder deployed to:', fogmetaRebuilder.address);
