@@ -32,4 +32,11 @@ module.exports = async ({ deployments }) => {
     const dealRewarder = await DealRewarder.deploy();
     await dealRewarder.deployed()
     console.log('DealRewarder deployed to:', dealRewarder.address);
+
+    //deploy FogmetaRebuilder
+    const FogmetaRebuilder = await ethers.getContractFactory('FogmetaRebuilder', wallet);
+    console.log('Deploying DealRewarder...');
+    const fogmetaRebuilder = await FogmetaRebuilder.deploy();
+    await fogmetaRebuilder.deployed()
+    console.log('FogmetaRebuilder deployed to:', fogmetaRebuilder.address);
 }
