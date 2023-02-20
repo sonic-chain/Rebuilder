@@ -485,6 +485,151 @@ func Retrieve(c *gin.Context) {
 	})
 }
 
+func AutoUploadFileToIpfs() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for {
+		select {
+		case <-ticker.C:
+			payloadCids, err := model.FindIpfsCopysLow()
+			if err != nil {
+				return
+			}
+			for _, payloadCid := range payloadCids {
+				model.UpdateSourceFileStatus(payloadCid, model.REBUILD_INDEXING)
+				cid := payloadCid
+				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Printf("catch panic error message: %v \n", err)
+						}
+					}()
+
+					peerData := common.NewIndexerClient().SendHttpGet(common.GET_PEER_URL, cid)
+
+					peerIds := make(map[string]string, 0)
+					for _, data := range peerData {
+						if string(data) == "no results for query" {
+							continue
+						}
+						var indexData IndexData
+						if err := json.Unmarshal(data, &indexData); err != nil {
+							log.Errorf("change to json failed,error: %v", err)
+							model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
+							continue
+						}
+						if len(indexData.MultihashResults) > 0 && len(indexData.MultihashResults[0].ProviderResults) > 0 {
+							peerId := indexData.MultihashResults[0].ProviderResults[0].Provider.ID
+							peerIds[peerId] = peerId
+						}
+					}
+					if len(peerIds) == 0 {
+						model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING_FAILED)
+						return
+					} else {
+						model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING)
+					}
+
+					var successFlag bool
+					var stat os.FileInfo
+					lotusClient := common.NewLotusClient()
+					for _, peerId := range peerIds {
+						log.Infof("start process peerId: %s", peerId)
+						// 2. query minerId
+						mp, err := model.FindMinerPeer(peerId)
+						if err != nil {
+							log.Warnf("get minerpeer failed,peerId:%s,error: %v,continue check next peerId", peerId, err)
+							continue
+						}
+
+						if model.GetFileMiner(mp.MinerId, cid) == 0 {
+							var fm model.FileMiner
+							fm.DataCid = cid
+							fm.MinerId = mp.MinerId
+							fm.Status = "StorageDealActive"
+							model.InsertFileMiner(&fm)
+						}
+
+						fileName := mp.MinerId + "-" + cid
+						savePath := filepath.Join(model.LotusSetting.DownloadDir, fileName)
+						// 3. retrieveData
+						if err := lotusClient.RetrieveData(mp.MinerId, cid, savePath); err != nil {
+							log.Errorf("lotus retrieveData failed, minerId: %s, dataCid: %s, error: %+v", mp.MinerId, cid, err)
+							model.UpdateSourceFileStatus(cid, model.REBUILD_RETRIEVING_FAILED)
+							continue
+						}
+
+						// 4. upload file to ipfs
+						model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING)
+						stat, err := os.Stat(savePath)
+						if err != nil {
+							log.Errorf("not found savepath: %s,error: %s", savePath, err)
+							return
+						}
+
+						fileIpfs := make([]model.FileIpfs, 0)
+						if stat.IsDir() {
+							urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
+							for _, u := range urls {
+								if model.GetFileIpfs(u, cid) == 0 {
+									fileIpfs = append(fileIpfs, model.FileIpfs{
+										DataCid: cid,
+										IpfsUrl: u,
+									})
+								}
+							}
+						} else {
+							objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
+							if _, err = mcs.UploadFile(context.TODO(), model.BUCKET_NAME, objectName, savePath); err != nil {
+								log.Errorf("upload file to mcs bucket failed, error: %+v", err)
+								model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
+								return
+							}
+							fileUrl, err := mcs.GetFile(context.TODO(), model.BUCKET_NAME, objectName)
+							if err != nil {
+								log.Errorf("get file from mcs bucket failed, error: %+v", err)
+								model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING_FAILED)
+								return
+							}
+							if model.GetFileIpfs(fileUrl, cid) == 0 {
+								fileIpfs = append(fileIpfs, model.FileIpfs{
+									DataCid: cid,
+									IpfsUrl: fileUrl,
+								})
+							}
+						}
+						if len(fileIpfs) > 0 {
+							if err = model.InsertFileIpfs(fileIpfs); err == nil {
+								successFlag = true
+								var sf model.SourceFile
+								sf.DataCid = cid
+
+								filepath.WalkDir(savePath, func(path string, d fs.DirEntry, err error) error {
+									info, err := os.Stat(path)
+									sf.FileSize = info.Size()
+									sf.FileName = info.Name()
+									return nil
+								})
+								sf.RebuildStatus = model.REBUILD_SUCCESS
+								model.UpdateSourceFile(&sf)
+								os.RemoveAll(savePath)
+							}
+						}
+						break
+					}
+					if !successFlag {
+						var sf model.SourceFile
+						sf.DataCid = cid
+						sf.FileSize = stat.Size()
+						sf.FileName = cid
+						sf.RebuildStatus = model.REBUILD_FAILED
+						model.UpdateSourceFile(&sf)
+					}
+				}()
+			}
+		}
+	}
+}
+
 func WatchIpfsNodeData() {
 	ticker := time.NewTicker(8 * time.Minute)
 	for {
