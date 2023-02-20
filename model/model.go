@@ -130,7 +130,7 @@ func InsertFileMiner(fileMiner *FileMiner) error {
 
 func GetFileMiner(minerId, dataCid string) int64 {
 	var num int64
-	if err := db.Model(&FileMiner{}).Where("miner_id=? and data_cid=?", minerId, dataCid).Find(&num).Error; err != nil {
+	if err := db.Model(&FileMiner{}).Where("miner_id=? and data_cid=?", minerId, dataCid).Count(&num).Error; err != nil {
 		log.Errorf("insert FileMiner data failed,error: %v", err)
 	}
 	return num
@@ -237,6 +237,17 @@ func ColdDataSize() ([]DataSizeResult, error) {
 	if err := db.Model(&SourceFile{}).Select("t_source_file.data_cid,t_source_file.file_size,count(miner_id) as num").
 		Joins("left join t_file_miner on t_source_file.data_cid=t_file_miner.data_cid").
 		Group("t_source_file.data_cid").Scan(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func FindIpfsCopysLow() ([]string, error) {
+	result := make([]string, 0)
+	// select payload_cid from t_source_file s left join t_file_ipfs f on s.payload_cid= f.data_cid group by s.payload_cid having sum(case when ipfs_url is null then 0 else 1 end) <1;
+	if err := db.Model(&SourceFile{}).Select("t_source_file.data_cid").
+		Joins("left join t_file_ipfs on t_source_file.data_cid=t_file_ipfs.data_cid").Where("t_source_file.rebuild_status is null").
+		Group("t_source_file.data_cid").Having("sum(case when t_file_ipfs.ipfs_url is null then 0 else 1 end) < ?", 1).Scan(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil
