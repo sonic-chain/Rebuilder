@@ -40,4 +40,11 @@ module.exports = async ({ deployments }) => {
     const fogmetaRebuilder = await FogmetaRebuilder.deploy();
     await fogmetaRebuilder.deployed()
     console.log('FogmetaRebuilder deployed to:', fogmetaRebuilder.address);
+
+    //deploy FogmetaRebuilderV1
+    const FogmetaRebuilderV1 = await ethers.getContractFactory('FogmetaRebuilderV1', wallet);
+    console.log('Deploying FogmetaRebuilderV1...');
+    const fogmetaRebuilderV1 = await FogmetaRebuilderV1.deploy();
+    await fogmetaRebuilderV1.deployed()
+    console.log('FogmetaRebuilderV1 deployed to:', fogmetaRebuilderV1.address);
 }
