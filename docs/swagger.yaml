@@ -55,8 +55,12 @@ definitions:
     type: object
   service.SummaryResp:
     properties:
+      balance:
+        type: number
       cids_count:
         type: integer
+      contract_address:
+        type: string
       data_stored:
         type: integer
       deals_count:

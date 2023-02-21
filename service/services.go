@@ -8,10 +8,14 @@ import (
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/common"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/internal"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/model"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/unknwon/com"
 	"io/fs"
+	"math"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -90,6 +94,31 @@ func Summary(c *gin.Context) {
 		return
 	}
 	summary.Height = height
+
+	rpcClient, err := ethclient.Dial(model.ContractConfig.RpcUrl)
+	if err != nil {
+		log.Error("connect to filecoin failed", err)
+		return
+	}
+	rebuilderContractAddress := ethcommon.HexToAddress(model.ContractConfig.Address)
+	log.Info("rebuilderContractAddress:", rebuilderContractAddress)
+
+	balance, err := rpcClient.BalanceAt(context.Background(), rebuilderContractAddress, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fbalance := new(big.Float)
+	fbalance.SetString(balance.String())
+	ethValue := new(big.Float).Quo(fbalance, big.NewFloat(math.Pow10(18)))
+	fmt.Println(ethValue)
+	summary.ContractAddress = rebuilderContractAddress.String()
+	if ethValue == nil {
+		summary.Balance = 0
+	} else {
+		ethBalance, _ := ethValue.Float64()
+		summary.Balance = ethBalance
+	}
 	appG.Response(http.StatusOK, internal.SUCCESS, summary)
 }
 
@@ -304,6 +333,33 @@ func GetCid(c *gin.Context) {
 	appG.Response(http.StatusOK, internal.SUCCESS, map[string]interface{}{
 		"msg": "Submitted for processing",
 	})
+}
+
+func GetBanlance() {
+
+}
+
+func Pay() {
+	rpcClient, err := ethclient.Dial(model.ContractConfig.RpcUrl)
+	if err != nil {
+		log.Error("connect to filecoin failed", err)
+		return
+	}
+	rebuilderContractAddress := ethcommon.HexToAddress(model.ContractConfig.Address)
+	log.Info("rebuilderContractAddress:", rebuilderContractAddress)
+
+	balance, err := rpcClient.BalanceAt(context.Background(), rebuilderContractAddress, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fbalance := new(big.Float)
+	fbalance.SetString(balance.String())
+	ethValue := new(big.Float).Quo(fbalance, big.NewFloat(math.Pow10(18)))
+	fmt.Println(ethValue) // 25.729324269165216041
+
+	//rebuilder, err := goBind.NewFogmetaRebuilder(rebuilderContractAddress, rpcClient)
+
 }
 
 // @Summary upload file
@@ -647,12 +703,14 @@ func WatchIpfsNodeData() {
 }
 
 type SummaryResp struct {
-	CidsCount  int64 `json:"cids_count"`
-	Providers  int64 `json:"providers"`
-	IpfsNodes  int64 `json:"ipfs_nodes"`
-	DealsCount int64 `json:"deals_count"`
-	DataStored int64 `json:"data_stored"`
-	Height     int64 `json:"height"`
+	CidsCount       int64   `json:"cids_count"`
+	Providers       int64   `json:"providers"`
+	IpfsNodes       int64   `json:"ipfs_nodes"`
+	DealsCount      int64   `json:"deals_count"`
+	DataStored      int64   `json:"data_stored"`
+	Height          int64   `json:"height"`
+	ContractAddress string  `json:"contract_address"`
+	Balance         float64 `json:"balance"`
 }
 
 type FileSourcePager struct {

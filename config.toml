@@ -24,3 +24,7 @@ IpfsUrls = ["https://upload.example.com;https://download.example.com","https://u
 ChainName = "polygon.mainnet"
 ApiKey = "xxx"
 AccessToken = "xxxx"
+
+[contract]
+address = "xxxxxx"
+rpcUrl = "https://api.hyperspace.node.glif.io/rpc/v1"

@@ -37,4 +37,7 @@ func setConfig() {
 	model.LotusSetting.DownloadDir = viper.GetString("lotus.DownloadDir")
 	model.LotusSetting.Address = viper.GetString("lotus.Address")
 	model.UploaderSetting.IpfsUrls = viper.GetStringSlice("uploader.IpfsUrls")
+	model.ContractConfig.Address = viper.GetString("contract.address")
+	model.ContractConfig.RpcUrl = viper.GetString("contract.rpcUrl")
+
 }
