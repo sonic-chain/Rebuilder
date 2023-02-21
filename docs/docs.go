@@ -268,8 +268,14 @@ const docTemplate = `{
         "service.SummaryResp": {
             "type": "object",
             "properties": {
+                "balance": {
+                    "type": "number"
+                },
                 "cids_count": {
                     "type": "integer"
+                },
+                "contract_address": {
+                    "type": "string"
                 },
                 "data_stored": {
                     "type": "integer"

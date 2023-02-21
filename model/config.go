@@ -36,3 +36,10 @@ type uploader struct {
 }
 
 var UploaderSetting = &uploader{}
+
+type Contract struct {
+	Address string
+	RpcUrl  string
+}
+
+var ContractConfig = &Contract{}
