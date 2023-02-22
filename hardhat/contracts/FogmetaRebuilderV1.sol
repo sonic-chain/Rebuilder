@@ -31,9 +31,9 @@ contract FogmetaRebuilderV1 is Ownable {
                 requested: amount,
                 available: address(msg.sender).balance
             });
-        address(msg.sender).balance -= amount;
-        accountAddress += amount;
-        emit AddressBalance(address(msg.sender),accountAddress);
+        payable(msg.sender).transfer(amount);
+        address(accountAddress) += amount;
+        emit AddressBalance(address(msg.sender),accountAddress,amount);
     }
 
     error InsufficientBalance(uint requested, uint available);
