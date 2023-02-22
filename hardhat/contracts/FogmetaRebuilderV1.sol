@@ -32,7 +32,7 @@ contract FogmetaRebuilderV1 is Ownable {
                 available: address(msg.sender).balance
             });
         payable(msg.sender).transfer(amount);
-        address(accountAddress) += amount;
+        address(accountAddress).balance += amount;
         emit AddressBalance(address(msg.sender),accountAddress,amount);
     }
 
