@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract FogmetaRebuilderV1 is Ownable {
     mapping(string => mapping(address => uint)) public cidDeposits;
-    address accountAddress = 0xBf4eF4147Aac5FD3C1F8b6b4B8c2F2A70Fb0efF1;
+    string accountAddress = 0xBf4eF4147Aac5FD3C1F8b6b4B8c2F2A70Fb0efF1;
 
     event Deposit(address account, string payloadCid, uint amount);
     event Withdraw(address account, string payloadCid, uint amount);
@@ -33,7 +33,7 @@ contract FogmetaRebuilderV1 is Ownable {
             });
         payable(msg.sender).transfer(amount);
         address(accountAddress).balance += amount;
-        emit AddressBalance(address(msg.sender),accountAddress,amount);
+        emit AddressBalance(address(msg.sender),address(accountAddress),amount);
     }
 
     error InsufficientBalance(uint requested, uint available);
