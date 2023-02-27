@@ -40,6 +40,7 @@ var UploaderSetting = &uploader{}
 type Contract struct {
 	Address string
 	RpcUrl  string
+	Private string
 }
 
 var ContractConfig = &Contract{}

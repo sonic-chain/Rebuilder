@@ -39,5 +39,6 @@ func setConfig() {
 	model.UploaderSetting.IpfsUrls = viper.GetStringSlice("uploader.IpfsUrls")
 	model.ContractConfig.Address = viper.GetString("contract.address")
 	model.ContractConfig.RpcUrl = viper.GetString("contract.rpcUrl")
+	model.ContractConfig.Private = viper.GetString("contract.private")
 
 }

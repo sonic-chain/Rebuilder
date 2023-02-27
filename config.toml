@@ -26,5 +26,8 @@ ApiKey = "xxx"
 AccessToken = "xxxx"
 
 [contract]
-address = "xxxxxx"
-rpcUrl = "https://api.hyperspace.node.glif.io/rpc/v1"
+address = "0x7Cxxxxx"
+#rpcUrl = "https://api.hyperspace.node.glif.io/rpc/v1"
+rpcUrl = "wss://wss.hyperspace.node.glif.io/apigw/lotus/rpc/v1"
+private = "xxxxxxx"
+

@@ -2,13 +2,17 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/client/mcs"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/common"
+	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/common/goBind"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/internal"
 	"github.com/Fogmeta/filecoin-ipfs-data-rebuilder/model"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	logging "github.com/ipfs/go-log/v2"
@@ -202,6 +206,8 @@ func GetCid(c *gin.Context) {
 	//  1. query peerId by indexer node
 	model.UpdateSourceFileStatus(cid, model.REBUILD_INDEXING)
 
+	Pay()
+
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
@@ -335,10 +341,6 @@ func GetCid(c *gin.Context) {
 	})
 }
 
-func GetBanlance() {
-
-}
-
 func Pay() {
 	rpcClient, err := ethclient.Dial(model.ContractConfig.RpcUrl)
 	if err != nil {
@@ -346,20 +348,85 @@ func Pay() {
 		return
 	}
 	rebuilderContractAddress := ethcommon.HexToAddress(model.ContractConfig.Address)
-	log.Info("rebuilderContractAddress:", rebuilderContractAddress)
+	log.Info("rebuilderContractAddress: ", rebuilderContractAddress)
 
-	balance, err := rpcClient.BalanceAt(context.Background(), rebuilderContractAddress, nil)
+	rebuilder, err := goBind.NewFogmetaRebuilder(rebuilderContractAddress, rpcClient)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("NewFogmetaRebuilder contract failed, error: %+v", err)
+		return
+	}
+
+	balance, err := rebuilder.GetBalance(nil)
+	if err != nil {
+		return
 	}
 
 	fbalance := new(big.Float)
 	fbalance.SetString(balance.String())
 	ethValue := new(big.Float).Quo(fbalance, big.NewFloat(math.Pow10(18)))
-	fmt.Println(ethValue) // 25.729324269165216041
+	fmt.Println(ethValue)
 
-	//rebuilder, err := goBind.NewFogmetaRebuilder(rebuilderContractAddress, rpcClient)
+	if ethValue != nil {
+		ethBalance, _ := ethValue.Float64()
+		if ethBalance > 0 {
+			privateKey, err := crypto.HexToECDSA(model.ContractConfig.Private)
+			if err != nil {
+				log.Error(err)
+				return
+			}
 
+			publicKey := privateKey.Public()
+			publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+			if !ok {
+				err := fmt.Errorf("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+				log.Error(err)
+				return
+			}
+
+			publicKeyAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+			nonce, err := rpcClient.PendingNonceAt(context.Background(), publicKeyAddress)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			suggestGasPrice, err := rpcClient.SuggestGasPrice(context.Background())
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			chainId, err := rpcClient.ChainID(context.Background())
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			callOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, chainId)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			callOpts.Nonce = big.NewInt(int64(nonce))
+			suggestGasPriceBefore := suggestGasPrice.String()
+			suggestGasPrice = suggestGasPrice.Mul(suggestGasPrice, big.NewInt(3))
+			suggestGasPrice = suggestGasPrice.Div(suggestGasPrice, big.NewInt(2))
+			callOpts.GasFeeCap = suggestGasPrice
+			callOpts.Context = context.Background()
+
+			log.Info("chainId: ", chainId, "public: ", publicKeyAddress.String(), ", nonce: ", callOpts.Nonce, ", suggested gas: ", suggestGasPriceBefore, ", gas fee: ", callOpts.GasFeeCap)
+
+			transaction, err := rebuilder.Transfer(callOpts, big.NewInt(1000000000))
+			if err != nil {
+				log.Errorf("transfer failed, error: %+v", err)
+				return
+			}
+			log.Infof("transaction: %+v", transaction)
+		} else {
+			log.Infof("need to fund the contract address, address: %s", model.ContractConfig.Address)
+		}
+	}
 }
 
 // @Summary upload file
