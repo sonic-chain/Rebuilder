@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract FogmetaRebuilderV1 is Ownable {
-
-    mapping(address => uint) public balances;
     address accountAddress;
     event AddressBalance(address from, address to, uint amount);
 
@@ -16,13 +14,21 @@ contract FogmetaRebuilderV1 is Ownable {
     error InsufficientBalance(uint requested, uint available);
 
     function transfer(uint amount) public onlyOwner{
-            if (address(msg.sender).balance < amount )
-                revert InsufficientBalance({
-                    requested: amount,
-                    available: address(msg.sender).balance
-                });
-            payable(msg.sender).transfer(amount);
-            balances[accountAddress] += amount;
-            emit AddressBalance(address(msg.sender),accountAddress,amount);
+        if (address(msg.sender).balance < amount )
+            revert InsufficientBalance({
+            requested: amount,
+            available: address(msg.sender).balance
+            });
+        payable(accountAddress).transfer(amount);
+        emit AddressBalance(address(msg.sender),accountAddress,amount);
+    }
+
+    function withdraw(uint amount) public returns(bool){
+        payable(msg.sender).transfer(amount);
+        return true;
+    }
+
+    function getBalance() view public returns(uint){
+        return address(this).balance;
     }
 }
