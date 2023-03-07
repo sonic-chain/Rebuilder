@@ -271,7 +271,7 @@ func GetCid(c *gin.Context) {
 
 			// 4. upload file to ipfs
 			model.UpdateSourceFileStatus(cid, model.REBUILD_UPLOADING)
-			stat, err := os.Stat(savePath)
+			stat, err = os.Stat(savePath)
 			if err != nil {
 				log.Errorf("not found savepath: %s,error: %s", savePath, err)
 				return
@@ -281,12 +281,10 @@ func GetCid(c *gin.Context) {
 			if stat.IsDir() {
 				urls := UploaderDir(savePath, model.UploaderSetting.IpfsUrls)
 				for _, u := range urls {
-					if model.GetFileIpfs(u, cid) == 0 {
-						fileIpfs = append(fileIpfs, model.FileIpfs{
-							DataCid: cid,
-							IpfsUrl: u,
-						})
-					}
+					fileIpfs = append(fileIpfs, model.FileIpfs{
+						DataCid: cid,
+						IpfsUrl: u,
+					})
 				}
 			} else {
 				objectName := path.Join(time.Now().Format("2006-01-02"), fileName)
@@ -308,21 +306,29 @@ func GetCid(c *gin.Context) {
 					})
 				}
 			}
+
 			if len(fileIpfs) > 0 {
 				if err = model.InsertFileIpfs(fileIpfs); err == nil {
 					successFlag = true
 					var sf model.SourceFile
 					sf.DataCid = cid
-
 					filepath.WalkDir(savePath, func(path string, d fs.DirEntry, err error) error {
 						info, err := os.Stat(path)
-						sf.FileSize = info.Size()
-						sf.FileName = info.Name()
+						if err != nil {
+							sf.FileSize = 0
+							sf.FileName = fileName
+							log.Errorf("read download file failed, error: %+v", err)
+						} else {
+							sf.FileSize = info.Size()
+							sf.FileName = info.Name()
+						}
 						return nil
 					})
 					sf.RebuildStatus = model.REBUILD_SUCCESS
 					model.UpdateSourceFile(&sf)
 					os.RemoveAll(savePath)
+				} else {
+					log.Errorf("insertFileIpfs failed, error: %+v", err)
 				}
 			}
 			break

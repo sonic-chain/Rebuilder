@@ -105,6 +105,10 @@ func CountFileSourceList(fieldName string, size int64) (int64, int64, error) {
 }
 
 func InsertFileIpfs(fileIpfs []FileIpfs) error {
+	for _, fi := range fileIpfs {
+		db.Where("data_cid = ? and ipfs_url=?", fi.DataCid, fi.IpfsUrl).Delete(&FileIpfs{})
+	}
+
 	if err := db.Model(&FileIpfs{}).Save(fileIpfs).Error; err != nil {
 		log.Errorf("insert FileIpfs data failed,error: %v", err)
 		return err
